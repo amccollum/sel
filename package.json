@@ -1,0 +1,24 @@
+{
+    "name": "sel",
+    "version": "0.1.0",
+    "description": "Tiny, but full-featured selector library",
+    "keywords": ["ender", "css", "selector", "jquery"],
+    "author": "Andrew McCollum <amccollum@gmail.com>",
+    "url": "http://github.com/amccollum/sel",
+    "repositories": [{ "type": "git", "url": "https://github.com/amccollum/sel.git" }],
+    "licenses": [{ "type": "MIT", "url": "http://opensource.org/licenses/mit-license.php" }],
+    
+    "main": "lib/sel.js",
+    "ender": "lib/ender.js",
+    "directories": {
+        "lib": "lib",
+        "src": "src",
+        "test": "test"
+    },
+    
+    "dependencies": {
+        "es5-basic": "*"
+    },
+    
+    "devDependencies": { "coffee-script": "*" }
+}
