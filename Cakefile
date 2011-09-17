@@ -21,9 +21,12 @@ task 'build', 'Build the library', ->
 
 task 'test', 'Build the test suite', ->
     execCmds [
+        'rm -rf test',
         'coffee --compile --bare --output test src/test/*.coffee',
         
-        'cat src/test/_pre.html src/test/template.html src/test/_post.html > test/index.html',
+        'cp src/test/index.html test',
+        'cp src/test/template.html test',
+        'cp src/test/vows.css test',
         'cp src/test/package.json test',
 
         'pushd test',
