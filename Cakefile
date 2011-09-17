@@ -27,11 +27,13 @@ task 'test', 'Build the test suite', ->
         'cp src/test/index.html test',
         'cp src/test/template.html test',
         'cp src/test/vows.css test',
-        'cp src/test/package.json test',
+        #'cp src/test/package.json test',
 
-        'pushd test',
-        '(npm install ender || true)',
-        'npm install ..',
+        'npm install --dev',
+
+        'ln -s .. node_modules/sel',
         'node_modules/.bin/ender build es5-basic domready node-compat ender-vows sel',
-        'popd',
+        'unlink node_modules/sel',
+
+        'mv ender.js ender.min.js test',
     ]

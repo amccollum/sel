@@ -11,12 +11,16 @@
     "main": "lib/sel.js",
     "ender": "lib/ender.js",
     "directories": {
-        "lib": "lib"
+        "lib": "lib",
+        "src": "src"
     },
     
     "dependencies": {
         "es5-basic": "*"
     },
     
-    "devDependencies": { "coffee-script": "*" }
+    "devDependencies": {
+        "coffee-script": "*",
+        "ender": "*"
+    }
 }
