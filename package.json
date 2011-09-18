@@ -1,7 +1,7 @@
 {
     "name": "sel",
     "version": "0.3.0",
-    "description": "Tiny, but full-featured selector library",
+    "description": "Tiny, yet full-featured, selector library",
     "keywords": ["ender", "css", "selector engine", "jquery"],
     "author": "Andrew McCollum <amccollum@gmail.com>",
     "url": "http://github.com/amccollum/sel",
