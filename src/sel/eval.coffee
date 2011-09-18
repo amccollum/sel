@@ -10,7 +10,8 @@ evaluate = (m, roots) ->
                 els = find(ancestorRoots, m)
                 
                 if m.type == '>'
-                    els = els.filter((el) -> roots.some((root) -> el.parentNode == root))
+                    els = els.filter (el) ->
+                        el and (parent = el.parentNode) and roots.some((root) -> parent == root)
             
                 if m.not
                     els = sel.difference(els, find(roots, m.not))
@@ -31,9 +32,9 @@ evaluate = (m, roots) ->
                     els = sel.intersection(els, sibs)
                     
                 else if m.type == '~'
-                    els = els.filter (el, i) ->
-                        el.parentNode and sibs.some((sib) ->
-                            sib != el and sib.parentNode == el.parentNode and elCmp(sib, el) == -1)
+                    els = els.filter (el) ->
+                        el and (parent = el.parentNode) and sibs.some (sib) ->
+                            sib != el and sib.parentNode == parent and elCmp(sib, el) == -1
                 
     return els
 

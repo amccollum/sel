@@ -73,6 +73,6 @@ vows.add 'Slickspeed Selectors',
         topic: () -> testTopic(require('sizzle'), @success)
         '':  tests
 
-    'qwery': 
-         topic: () -> testTopic(require('qwery'), @success)
-         '':  tests
+    # 'qwery': 
+    #      topic: () -> testTopic(require('qwery'), @success)
+    #      '':  tests

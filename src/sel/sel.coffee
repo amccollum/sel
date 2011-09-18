@@ -43,7 +43,7 @@ sel.intersection = (a, b) ->
 
     return arr
 
-sel.difference = (a, b) ->
+sel.difference = (a, b) -> 
     arr = []
     i = 0
     j = 0
@@ -311,7 +311,8 @@ evaluate = (m, roots) ->
                 els = find(ancestorRoots, m)
                 
                 if m.type == '>'
-                    els = els.filter((el) -> roots.some((root) -> el.parentNode == root))
+                    els = els.filter (el) ->
+                        el and (parent = el.parentNode) and roots.some((root) -> parent == root)
             
                 if m.not
                     els = sel.difference(els, find(roots, m.not))
@@ -332,9 +333,9 @@ evaluate = (m, roots) ->
                     els = sel.intersection(els, sibs)
                     
                 else if m.type == '~'
-                    els = els.filter (el, i) ->
-                        el.parentNode and sibs.some((sib) ->
-                            sib != el and sib.parentNode == el.parentNode and elCmp(sib, el) == -1)
+                    els = els.filter (el) ->
+                        el and (parent = el.parentNode) and sibs.some (sib) ->
+                            sib != el and sib.parentNode == parent and elCmp(sib, el) == -1
                 
     return els
 
@@ -391,45 +392,53 @@ sel.sel = (selector, roots) ->
 
 nthPattern = /\s*((?:\+|\-)?(\d*))n\s*((?:\+|\-)\s*\d+)?\s*/;
 
-children = (el, ofType) ->
-    return (child for child in el.childNodes when child.nodeType == 1 and (not ofType or child.nodeName == ofType))
+childIndex = (el, reversed, ofType) ->
+    start = if reversed then 'lastChild' else 'firstChild'
+    next = if reversed then 'previousSibling' else 'nextSibling'
+    
+    index = 0
+    node = el.parentNode and el.parentNode[start]
+    while node
+        if ofType and node.nodeName != ofType
+            continue
+            
+        if node.nodeType == 1
+            index++
+        
+        if node == el
+            return index
+            
+        node = node[next]
 
-checkNthExpr = (el, els, a, b) ->
-    if not a
-        return el == els[b-1]
-    else
-        `
-        for (var i = b; (a > 0 ? i <= els.length : i >= 1); i += a)
-            if (el === els[i-1])
-                return true;
-                
-        `
-        return false
+    return NaN
 
-checkNth = (el, els, val) ->
+checkNth = (i, val) ->
     if not val then false
-    else if isFinite(val) then el == els[val-1]
-    else if val == 'even' then checkNthExpr(el, els, 2, 0)
-    else if val == 'odd' then checkNthExpr(el, els, 2, 1)
+    else if isFinite(val) then `i == val`
+    else if val == 'even' then (i % 2 == 0)
+    else if val == 'odd' then (i % 2 == 1)
     else if m = nthPattern.exec(val)
         a = if m[2] then parseInt(m[1]) else parseInt(m[1] + '1')   # Check case where coefficient is omitted
         b = if m[3] then parseInt(m[3].replace(/\s*/, '')) else 0   # Check case where constant is omitted
-        return checkNthExpr(el, els, a, b)
+
+        if not a then i == b
+        else ((i - b) % a == 0 and (i - b) / a >= 0)
+
     else throw new Error('invalid nth expression')
 
 sel.pseudos = 
-    'nth-child': (el, val) -> ((p = el.parentNode) and (els = children(p)) and checkNth(el, els, val))
-    'nth-last-child': (el, val) -> ((p = el.parentNode) and (els = children(p).reverse()) and checkNth(el, els, val))
-    'nth-of-type': (el, val) -> ((p = el.parentNode) and (els = children(p, el.nodeName)) and checkNth(el, els, val))
-    'nth-last-of-type': (el, val) -> ((p = el.parentNode) and (els = children(p, el.nodeName).reverse()) and checkNth(el, els, val))
+    'nth-child': (el, val) -> checkNth(childIndex(el), val)
+    'nth-last-child': (el, val) -> checkNth(childIndex(el, true), val)
+    'nth-of-type': (el, val) -> checkNth(childIndex(el, false, el.nodeName), val)
+    'nth-last-of-type': (el, val) -> checkNth(childIndex(el, true, el.nodeName), val)
     
-    'first-child': (el) -> sel.pseudos['nth-child'](el, 1)
-    'last-child': (el) -> sel.pseudos['nth-last-child'](el, 1)
-    'first-of-type': (el) -> sel.pseudos['nth-of-type'](el, 1)
-    'last-of-type': (el) -> sel.pseudos['nth-last-of-type'](el, 1)
+    'first-child': (el) -> childIndex(el) == 1
+    'last-child': (el) -> childIndex(el, true) == 1
+    'first-of-type': (el) -> childIndex(el, false, el.nodeName) == 1
+    'last-of-type': (el) -> childIndex(el, true, el.nodeName) == 1
     
-    'only-child': (el) -> ((p = el.parentNode) and (els = children(p)) and (els.length == 1) and (el == els[0]))
-    'only-of-type': (el) -> ((p = el.parentNode) and (els = children(p, el.nodeName)) and (els.length == 1) and (el == els[0]))
+    'only-child': (el) -> childIndex(el) == 1 and childIndex(el, true) == 1
+    'only-of-type': (el) -> childIndex(el, false, el.nodeName) == 1 and childIndex(el, true, el.nodeName) == 1
 
     target: (el) -> (el.getAttribute('id') == location.hash.substr(1))
     checked: (el) -> el.checked == true
