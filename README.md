@@ -63,56 +63,11 @@ Tests
 
 CoffeeScript and NPM are required to build the test suite. Since the tests employ iframes, they cannot be run directly from disk.
 
-Ender support
--------------
-Qwery is the recommended selector engine for [Ender](http://ender.no.de). If you don't have Ender, install it, and don't ever look back.
+Ender
+-----
+It's easy to use Sel with Ender:
 
-    $ npm install ender -g
-
-To include Query in a custom build of Ender you can include it as such:
-
-    $ ender build qwery[,mod2,mod3,...]
-
-Or add it to an existing Ender installation
-
-    $ ender add qwery
-
-Ender bridge additions
----------
-Assuming you already know the happs on Ender -- Qwery provides some additional niceties when included with Ender:
-
-``` js
-// the context finder - find all p elements descended from a div element
-$('div').find('p')
-
-// join one set with another
-$('div').and('p')
-
-// element creation
-$('<p>hello world</p>'); // => [HTMLParagraphElement "hello world"]
-```
-
-Recommended sibling modules
-----------
-In most cases, if you're hunting for a selector engine, you probably want to pair Qwery with a DOM module. In that case qwery pairs quite nicely with [Bonzo](https://github.com/ded/bonzo) (a DOM util) and [Bean](https://github.com/fat/bean) (an event util). Add them to your Ender installation as such:
-
-    $ ender -b qwery bonzo bean
-
-Then write code like a boss:
-
-``` js
-$('a.boosh')
-  .css({
-    color: 'red',
-    background: 'white'
-  })
-  .after('√')
-  .bind({
-    'click.button': function () {
-      $(this).hide().unbind('click.button')
-    }
-  })
-```
+    $ ender build sel [module, ...]
 
 Acknowledments
 -------
