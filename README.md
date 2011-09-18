@@ -8,9 +8,11 @@ Support
 -------
 Sel supports all of the [CSS3 selectors](http://www.w3.org/TR/css3-selectors/#selectors), as well as the following selector extensions:
 
-    [attr!=val]
-    :contains(text)
-    :has(selector)
+``` css
+[attr!=val]
+:contains(text)
+:has(selector)
+```
 
 Roots
 -----
@@ -48,6 +50,23 @@ sel.pseudos.foo = function (el, val) {
 }
 ```
 
+Ender
+-----
+It's easy to use Sel with Ender:
+
+    $ ender build sel [module, ...]
+    
+When using Sel with Ender, there are some convenient methods you can take advantage of:
+
+``` js
+$('.parent').find('.child')         // Same as $('.child', '.parent')
+$('.foo').union('bar')              // Same as $('.foo, .bar')
+$('.baz').difference('.bat')        // Same as $('.baz:not(.bat)')
+$('.qux').intersection('.thud')     // Same as $('.qux.thud')
+```
+
+You can also use the synonyms `and`, `not`, and `filter`, respectively, for the latter three methods.
+
 Browser Support
 ---------------
 Sel (with the [es5-basic](https://github.com/amccollum/es5-basic) module) supports the following browsers
@@ -63,12 +82,6 @@ Tests
 
 CoffeeScript and NPM are required to build the test suite. Since the tests employ iframes, they cannot be run directly from disk.
 
-Ender
------
-It's easy to use Sel with Ender:
-
-    $ ender build sel [module, ...]
-
 Acknowledments
 -------
-This library was inspired by [Qwery](https://github.com/ded/qwery)
+This library was inspired by [Qwery](https://github.com/ded/qwery).

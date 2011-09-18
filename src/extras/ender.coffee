@@ -25,8 +25,8 @@
     methods =
         find: (s) -> sel.sel(s, this)
         union: (s, r) -> sel.union(this, $(s, r))
-        intersection: (s, r) -> sel.intersection(this, $(s, r))
         difference: (s, r) -> sel.difference(this, $(s, r))
+        intersection: (s, r) -> sel.intersection(this, $(s, r))
     
     methods.and = methods.union
     methods.not = methods.difference
