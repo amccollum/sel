@@ -32,7 +32,7 @@ task 'test', 'Build the test suite', ->
         'npm install --dev',
 
         'ln -s .. node_modules/sel',
-        'node_modules/.bin/ender build es5-basic domready node-compat ender-vows sel',
+        'node_modules/.bin/ender build es5-basic domready node-compat ender-vows sel qwery sizzle',
         'unlink node_modules/sel',
 
         'mv ender.js ender.min.js test',

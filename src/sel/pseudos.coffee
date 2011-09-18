@@ -42,10 +42,15 @@ sel.pseudos =
     'only-child': (el) -> ((p = el.parentNode) and (els = children(p)) and (els.length == 1) and (el == els[0]))
     'only-of-type': (el) -> ((p = el.parentNode) and (els = children(p, el.nodeName)) and (els.length == 1) and (el == els[0]))
 
-    contains: (el, val) -> (el.textContent ? el.innerText).indexOf(val) >= 0
     target: (el) -> (el.getAttribute('id') == location.hash.substr(1))
-    checked: (el) -> el.checked
-    enabled: (el) -> not el.disabled
-    disabled: (el) -> el.disabled
-    empty: (el) -> !el.childNodes.length
+    checked: (el) -> el.checked == true
+    enabled: (el) -> el.disabled == false
+    disabled: (el) -> el.disabled == true
+    selected: (el) -> el.selected == true
+    focus: (el) -> el.ownerDocument.activeElement == el
+    empty: (el) -> not el.childNodes.length
+
+    contains: (el, val) -> (el.textContent ? el.innerText).indexOf(val) >= 0
+	has: (el, val) -> select(val, [el]).length > 0
+
 

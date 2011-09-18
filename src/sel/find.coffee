@@ -29,13 +29,9 @@ find = (roots, m) ->
     return els
 
 findId = (roots, id) ->
-    el = document.getElementById(id)
-    if el
-        for root in roots
-            if contains(root, el)
-                return [el]
-    
-    return []
+    doc = (roots[0].ownerDocument or roots[0])
+    el = doc.getElementById(id)
+    return `el ? [el] : []`
 
 findClasses = (roots, classes) ->
     els = []
@@ -66,21 +62,18 @@ filterAttr = (els, name, op, val) ->
     if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
         val = val.substr(1, val.length - 2)
 
-    if not op
-        return els.filter((el) -> el.getAttribute(name) != null)
-    else if op == '='
-        return els.filter((el) -> el.getAttribute(name) == val)
-    else if op == '!='
-        return els.filter((el) -> el.getAttribute(name) != val)
-
-    pattern = switch op
-        when '^=' then memoRegExp("^#{val}")
-        when '$=' then memoRegExp("#{val}$")
-        when '*=' then memoRegExp("#{val}")
-        when '~=' then memoRegExp("(^|\\s+)#{val}(\\s+|$)")
-        when '|=' then memoRegExp("^#{val}(-|$)")
-
-    return els.filter((el) -> (attr = el.getAttribute(name)) != null and pattern.test(attr))
+    return els.filter (el) ->
+        (attr = el.getAttribute(name)) != null and (
+            if not op then true
+            else if op == '=' then attr == val
+            else if op == '!=' then attr != val
+            else if op == '*=' then attr.indexOf(val) >= 0
+            else if op == '^=' then attr.indexOf(val) == 0
+            else if op == '$=' then attr.substr(attr.length - val.length) == val
+            else if op == '~=' then " #{attr} ".indexOf(" #{val} ") >= 0
+            else if op == '|=' then attr == val or (attr.indexOf(val) == 0 and attr[val.length] == '-')
+            else false
+        )
     
 filterPseudo = (els, name, val) ->
     pseudo = sel.pseudos[name]

@@ -6,7 +6,12 @@
     <!-- Stylesheet -->
     <link rel="stylesheet" href="vows.css" />
     
-    <!-- Ender -->
+    <!-- Override doc.qSA -->
+    <script type="text/javascript" charset="utf-8">
+        document.querySelectorAll = null;
+    </script>
+    
+    <!-- Ender (including selector libs) -->
     <script src="ender.js" type="text/javascript" charset="utf-8"></script>
 
     <!-- Tests -->

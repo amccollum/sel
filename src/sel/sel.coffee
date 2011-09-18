@@ -3,9 +3,6 @@ sel = exports ? (@sel = {})
 
 html = document.documentElement
 
-memoRegExp = (r) -> memoRegExp.cache[r] or (memoRegExp.cache[r] = new RegExp(r))
-memoRegExp.cache = {}
-
 _hasDuplicates = null
 elCmp = (a, b) ->
     if not a then return -1
@@ -31,7 +28,9 @@ uniq = (arr) ->
 
     return arr
 
-intersect = (a, b) ->
+sel.union = (a, b) -> uniq(a.concat(b))
+
+sel.intersection = (a, b) ->
     arr = []
     i = 0
     j = 0
@@ -44,7 +43,7 @@ intersect = (a, b) ->
 
     return arr
 
-difference = (a, b) ->
+sel.difference = (a, b) ->
     arr = []
     i = 0
     j = 0
@@ -128,13 +127,9 @@ find = (roots, m) ->
     return els
 
 findId = (roots, id) ->
-    el = document.getElementById(id)
-    if el
-        for root in roots
-            if contains(root, el)
-                return [el]
-    
-    return []
+    doc = (roots[0].ownerDocument or roots[0])
+    el = doc.getElementById(id)
+    return `el ? [el] : []`
 
 findClasses = (roots, classes) ->
     els = []
@@ -165,21 +160,18 @@ filterAttr = (els, name, op, val) ->
     if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
         val = val.substr(1, val.length - 2)
 
-    if not op
-        return els.filter((el) -> el.getAttribute(name) != null)
-    else if op == '='
-        return els.filter((el) -> el.getAttribute(name) == val)
-    else if op == '!='
-        return els.filter((el) -> el.getAttribute(name) != val)
-
-    pattern = switch op
-        when '^=' then memoRegExp("^#{val}")
-        when '$=' then memoRegExp("#{val}$")
-        when '*=' then memoRegExp("#{val}")
-        when '~=' then memoRegExp("(^|\\s+)#{val}(\\s+|$)")
-        when '|=' then memoRegExp("^#{val}(-|$)")
-
-    return els.filter((el) -> (attr = el.getAttribute(name)) != null and pattern.test(attr))
+    return els.filter (el) ->
+        (attr = el.getAttribute(name)) != null and (
+            if not op then true
+            else if op == '=' then attr == val
+            else if op == '!=' then attr != val
+            else if op == '*=' then attr.indexOf(val) >= 0
+            else if op == '^=' then attr.indexOf(val) == 0
+            else if op == '$=' then attr.substr(attr.length - val.length) == val
+            else if op == '~=' then " #{attr} ".indexOf(" #{val} ") >= 0
+            else if op == '|=' then attr == val or (attr.indexOf(val) == 0 and attr[val.length] == '-')
+            else false
+        )
     
 filterPseudo = (els, name, val) ->
     pseudo = sel.pseudos[name]
@@ -311,35 +303,38 @@ parse = (selector) ->
 
 evaluate = (m, roots) ->
     els = []
-    switch m.type 
-        when ' ', '>'
-            ancestorRoots = roots.filter((root, i) -> not (i and contains(roots[i-1], root)))
-            els = find(ancestorRoots, m)
-                
-            if m.type == '>'
-                els = els.filter((el) -> roots.some((root) -> el.parentNode == root))
-            
-            if m.not
-                els = difference(els, find(roots, m.not))
-            
-            if m.child
-                els = evaluate(m.child, els)
 
-        when '+', '~', ','
-            sibs = evaluate(m.children[0], roots)
-            els = evaluate(m.children[1], roots)
-            
-            if m.type == ','
-                els = uniq(els.concat(sibs))
-            else if m.type == '+'
-                sibs = sibs.map((el) -> nextElementSibling(el))
-                sibs.sort(elCmp)
+    if roots.length
+        switch m.type 
+            when ' ', '>'
+                ancestorRoots = roots.filter((root, i) -> not (i and contains(roots[i-1], root)))
+                els = find(ancestorRoots, m)
                 
-                els = intersect(els, sibs)
-            else if m.type == '~'
-                els = els.filter (el, i) ->
-                    el.parentNode and sibs.some((sib) ->
-                        sib != el and sib.parentNode == el.parentNode and elCmp(sib, el) == -1)
+                if m.type == '>'
+                    els = els.filter((el) -> roots.some((root) -> el.parentNode == root))
+            
+                if m.not
+                    els = sel.difference(els, find(roots, m.not))
+            
+                if m.child
+                    els = evaluate(m.child, els)
+
+            when '+', '~', ','
+                sibs = evaluate(m.children[0], roots)
+                els = evaluate(m.children[1], roots)
+            
+                if m.type == ','
+                    els = sel.union(els, sibs)
+                    
+                else if m.type == '+'
+                    sibs = sibs.map((el) -> nextElementSibling(el))
+                    sibs.sort(elCmp)
+                    els = sel.intersection(els, sibs)
+                    
+                else if m.type == '~'
+                    els = els.filter (el, i) ->
+                        el.parentNode and sibs.some((sib) ->
+                            sib != el and sib.parentNode == el.parentNode and elCmp(sib, el) == -1)
                 
     return els
 
@@ -380,8 +375,10 @@ sel.sel = (selector, roots) ->
 
     if not selector
         return []
-    else if selector in [window, document]
-        return [selector]
+    else if selector in [window, 'window']
+        return [window]
+    else if selector in [document, 'document']
+        return [document]
     else if selector.nodeType == 1
         if roots.some((root) -> contains(root, selector))
             return [selector]
@@ -434,10 +431,15 @@ sel.pseudos =
     'only-child': (el) -> ((p = el.parentNode) and (els = children(p)) and (els.length == 1) and (el == els[0]))
     'only-of-type': (el) -> ((p = el.parentNode) and (els = children(p, el.nodeName)) and (els.length == 1) and (el == els[0]))
 
-    contains: (el, val) -> (el.textContent ? el.innerText).indexOf(val) >= 0
     target: (el) -> (el.getAttribute('id') == location.hash.substr(1))
-    checked: (el) -> el.checked
-    enabled: (el) -> not el.disabled
-    disabled: (el) -> el.disabled
-    empty: (el) -> !el.childNodes.length
+    checked: (el) -> el.checked == true
+    enabled: (el) -> el.disabled == false
+    disabled: (el) -> el.disabled == true
+    selected: (el) -> el.selected == true
+    focus: (el) -> el.ownerDocument.activeElement == el
+    empty: (el) -> not el.childNodes.length
+
+    contains: (el, val) -> (el.textContent ? el.innerText).indexOf(val) >= 0
+	has: (el, val) -> select(val, [el]).length > 0
+
 

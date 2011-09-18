@@ -22,15 +22,17 @@
 
     $._select = (s, r) -> if /^\s*</.test(s) then create(s, r) else sel.sel(s, r)
 
-    $.pseudos = sel.pseudos
-    $.ender({
+    methods =
         find: (s) -> sel.sel(s, this)
-        and: (s, r) -> 
-            for el in $(s, r)
-                this.push(el)
+        union: (s, r) -> sel.union(this, $(s, r))
+        intersection: (s, r) -> sel.intersection(this, $(s, r))
+        difference: (s, r) -> sel.difference(this, $(s, r))
+    
+    methods.and = methods.union
+    methods.not = methods.difference
+    methods.filter = methods.intersection
 
-            return this
-
-    }, true)
+    $.pseudos = sel.pseudos
+    $.ender(methods, true)
 
 )(ender)

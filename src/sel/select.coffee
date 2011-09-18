@@ -35,8 +35,10 @@ sel.sel = (selector, roots) ->
 
     if not selector
         return []
-    else if selector in [window, document]
-        return [selector]
+    else if selector in [window, 'window']
+        return [window]
+    else if selector in [document, 'document']
+        return [document]
     else if selector.nodeType == 1
         if roots.some((root) -> contains(root, selector))
             return [selector]

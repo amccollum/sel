@@ -2,9 +2,6 @@
 
 html = document.documentElement
 
-memoRegExp = (r) -> memoRegExp.cache[r] or (memoRegExp.cache[r] = new RegExp(r))
-memoRegExp.cache = {}
-
 _hasDuplicates = null
 elCmp = (a, b) ->
     if not a then return -1
@@ -30,7 +27,9 @@ uniq = (arr) ->
 
     return arr
 
-intersect = (a, b) ->
+sel.union = (a, b) -> uniq(a.concat(b))
+
+sel.intersection = (a, b) ->
     arr = []
     i = 0
     j = 0
@@ -43,7 +42,7 @@ intersect = (a, b) ->
 
     return arr
 
-difference = (a, b) ->
+sel.difference = (a, b) -> 
     arr = []
     i = 0
     j = 0
