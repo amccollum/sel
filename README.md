@@ -50,7 +50,7 @@ sel.pseudos.foo = function (el, val) {
 
 Browser Support
 ---------------
-Sel (with the [es5-basic module](https://github.com/amccollum/es5-basic)) supports the following browsers
+Sel (with the [es5-basic](https://github.com/amccollum/es5-basic) module) supports the following browsers
 
   - IE 6-10
   - Chrome 1 - 12
