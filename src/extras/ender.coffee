@@ -1,4 +1,4 @@
-!(($) ->
+(($) ->
     sel = require('sel')
 
     nodeMap = {

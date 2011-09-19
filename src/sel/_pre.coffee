@@ -1,1 +1,2 @@
-sel = exports ? (@sel = {})
+((sel) ->
+
