@@ -108,9 +108,7 @@
         if m.id
             els = findId(roots, m.id)
             els = filterTag(els, m.tag) if m.tag
-            if m.classes
-                for cls in m.classes
-                    els = filterAttr(els, 'class', '~=', cls)
+            els = filterClasses(els, m.classes) if m.classes
 
         else if m.classes and html.getElementsByClassName
             els = findClasses(roots, m.classes)
@@ -118,9 +116,7 @@
         
         else
             els = findTag(roots, m.tag or '*')
-            if m.classes
-                for cls in m.classes
-                    els = filterAttr(els, 'class', '~=', cls)
+            els = filterClasses(els, m.classes) if m.classes
 
         if m.attrs
             for attr in m.attrs
@@ -162,9 +158,9 @@
     filterTag = (els, tag) -> els.filter((el) -> el.nodeName.toLowerCase() == tag)
 
     filterClasses = (els, classes) ->
-        for cls in m.classes
-            els = filterAttr(els, roots, 'class', '~=', cls)
-    
+        for cls in classes
+            els = filterAttr(els, 'class', '~=', cls)
+                
         return els
 
     filterAttr = (els, name, op, val) ->
@@ -172,15 +168,18 @@
             val = val.substr(1, val.length - 2)
 
         return els.filter (el) ->
-            (attr = el.getAttribute(name)) != null and (
+            attr = if name == 'class' then el.className else el.getAttribute(name)
+            value = attr + ""
+                
+            attr != null and (
                 if not op then true
-                else if op == '=' then attr == val
-                else if op == '!=' then attr != val
-                else if op == '*=' then attr.indexOf(val) >= 0
-                else if op == '^=' then attr.indexOf(val) == 0
-                else if op == '$=' then attr.substr(attr.length - val.length) == val
-                else if op == '~=' then " #{attr} ".indexOf(" #{val} ") >= 0
-                else if op == '|=' then attr == val or (attr.indexOf(val) == 0 and attr[val.length] == '-')
+                else if op == '=' then value == val
+                else if op == '!=' then value != val
+                else if op == '*=' then value.indexOf(val) >= 0
+                else if op == '^=' then value.indexOf(val) == 0
+                else if op == '$=' then value.substr(value.length - val.length) == val
+                else if op == '~=' then " #{value} ".indexOf(" #{val} ") >= 0
+                else if op == '|=' then value == val or (value.indexOf(val) == 0 and value[val.length] == '-')
                 else false
             )
     
@@ -378,7 +377,6 @@
             return select(roots, [document])
         
         else if typeof roots == 'object' and isFinite(roots.length)
-            return roots
             if roots.sort
                 roots.sort(elCmp)
                 
