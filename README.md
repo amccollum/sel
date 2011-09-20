@@ -59,7 +59,7 @@ It's easy to use Sel with Ender:
 When using Sel with Ender, there are some convenient methods you can take advantage of:
 
 ``` js
-$('.parent').find('.child')         // Same as $('.child', '.parent')
+$('.parent').find('.child')         // Same as $('.parent .child') or $('.child', '.parent')
 $('.foo').union('bar')              // Same as $('.foo, .bar')
 $('.baz').difference('.bat')        // Same as $('.baz:not(.bat)')
 $('.qux').intersection('.thud')     // Same as $('.qux.thud')

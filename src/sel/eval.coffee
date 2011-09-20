@@ -7,8 +7,8 @@
             switch m.type 
                 when ' ', '>'
                     # We don't need to search descendents of other roots...
-                    ancestorRoots = roots.filter((root, i) -> not (i and contains(roots[i-1], root)))
-                    els = find(ancestorRoots, m)
+                    outerRoots = subsume(roots)
+                    els = find(outerRoots, m)
                 
                     if m.type == '>'
                         els = els.filter (el) ->

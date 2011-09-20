@@ -4,72 +4,18 @@
 
     html = document.documentElement
 
-    _hasDuplicates = null
-    elCmp = (a, b) ->
-        if not a then return -1
-        if not b then return 1
-    
-        if a == b
-            _hasDuplicates = true;
-            return 0;
-
-        return (if comparePosition(a, b) & 4 then -1 else 1)
-
-    uniq = (arr) ->
-        _hasDuplicates = false
-        arr.sort(elCmp)
-
-        if _hasDuplicates
-            i = arr.length - 1
-            while i
-                if arr[i] == arr[i-1]
-                    arr.splice(i, 1)
-                else
-                    i--
-
-        return arr
-
-    sel.union = (a, b) -> uniq(a.concat(b))
-
-    sel.intersection = (a, b) ->
-        arr = []
-        i = 0
-        j = 0
-
-        while i < a.length and j < b.length
-            switch elCmp(a[i], b[j])
-                when -1 then i++
-                when 1 then j++
-                when 0 then arr.push(a[i++])
-
-        return arr
-
-    sel.difference = (a, b) -> 
-        arr = []
-        i = 0
-        j = 0
-
-        while i < a.length
-            if j >= b.length
-                arr.push(a[i++])
-            else
-                switch elCmp(a[i], b[j])
-                    when -1 then arr.push(a[i++])
-                    when 1 then j++
-                    when 0 then i++
-
-        return arr
-    
     contains =
         if html.compareDocumentPosition?
             (a, b) -> (a.compareDocumentPosition(b) & 16) == 16
     
         else if html.contains?
             (a, b) ->
-                a = html if a in [document, window]
-                return a != b and a.contains(b)
+                if a.documentElement then b.ownerDocument == a
+                else a != b and a.contains(b)
+                
         else
             (a, b) ->
+                if a.documentElement then return b.ownerDocument == a
                 while b = b.parentNode
                     return true if a == b
 
@@ -97,6 +43,65 @@
                 
                 return null
 
+    elCmp = (a, b) ->
+        if not a then return -1
+        else if not b then return 1
+        else if a == b then return 0
+        else if comparePosition(a, b) & 4 then -1
+        else 1
+
+    # Return the outer-most ancestors of the element array
+    subsume = (arr) -> arr.filter((el, i) -> el and not (i and (arr[i-1] == el or contains(arr[i-1], el))))
+
+    sel.union = (a, b) ->
+        arr = []
+        i = 0
+        j = 0
+
+        while i < a.length and j < b.length
+            switch elCmp(a[i], b[j])
+                when -1 then arr.push(a[i++])
+                when 1 then arr.push(b[j++])
+                when 0
+                    arr.push(a[i++])
+                    j++
+
+        while i < a.length
+            arr.push(a[i++])
+
+        while j < b.length
+            arr.push(b[j++])
+
+        return arr
+
+    sel.intersection = (a, b) ->
+        arr = []
+        i = 0
+        j = 0
+
+        while i < a.length and j < b.length
+            switch elCmp(a[i], b[j])
+                when -1 then i++
+                when 1 then j++
+                when 0 then arr.push(a[i++])
+
+        return arr
+
+    sel.difference = (a, b) -> 
+        arr = []
+        i = 0
+        j = 0
+
+        while i < a.length and j < b.length
+            switch elCmp(a[i], b[j])
+                when -1 then arr.push(a[i++])
+                when 1 then j++
+                when 0 then i++
+
+        while i < a.length
+            arr.push(a[i++])
+
+        return arr
     ### find.coffee ###
 
     find = (roots, m) ->
@@ -130,16 +135,21 @@
     findId = (roots, id) ->
         doc = (roots[0].ownerDocument or roots[0])
         el = doc.getElementById(id)
-        return `el ? [el] : []`
+        if el and roots.some((root) -> contains(root, el))
+            return [el]
+            
+        return []
 
     findClasses = (roots, classes) ->
         els = []
         for root in roots
+            rootEls = []
             for cls in classes
-                for el in root.getElementsByClassName(cls)
-                    els.push(el)
+                rootEls = sel.union(rootEls, root.getElementsByClassName(cls))
+                
+            els = els.concat(rootEls)
             
-        return uniq(els)
+        return els
             
     findTag = (roots, tag) ->
         els = []
@@ -309,8 +319,8 @@
             switch m.type 
                 when ' ', '>'
                     # We don't need to search descendents of other roots...
-                    ancestorRoots = roots.filter((root, i) -> not (i and contains(roots[i-1], root)))
-                    els = find(ancestorRoots, m)
+                    outerRoots = subsume(roots)
+                    els = find(outerRoots, m)
                 
                     if m.type == '>'
                         els = els.filter (el) ->
@@ -352,7 +362,7 @@
                         for el in root.querySelectorAll(selector)
                             els.push(el)
             
-                    return uniq(els)
+                    return els
                 
                 catch e
                     return evaluate(parse(selector), roots)
@@ -369,6 +379,10 @@
         
         else if typeof roots == 'object' and isFinite(roots.length)
             return roots
+            if roots.sort
+                roots.sort(elCmp)
+                
+            return subsume(roots)
         
         else
             return [roots]

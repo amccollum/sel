@@ -9,7 +9,7 @@
                         for el in root.querySelectorAll(selector)
                             els.push(el)
             
-                    return uniq(els)
+                    return els
                 
                 catch e
                     return evaluate(parse(selector), roots)
@@ -25,7 +25,10 @@
             return select(roots, [document])
         
         else if typeof roots == 'object' and isFinite(roots.length)
-            return roots
+            if roots.sort
+                roots.sort(elCmp)
+                
+            return subsume(roots)
         
         else
             return [roots]

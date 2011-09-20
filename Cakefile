@@ -27,7 +27,6 @@ task 'test', 'Build the test suite', ->
         'cp src/test/index.html test',
         'cp src/test/template.html test',
         'cp src/test/vows.css test',
-        #'cp src/test/package.json test',
 
         'npm install --dev',
 

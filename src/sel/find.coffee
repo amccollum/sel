@@ -31,16 +31,21 @@
     findId = (roots, id) ->
         doc = (roots[0].ownerDocument or roots[0])
         el = doc.getElementById(id)
-        return `el ? [el] : []`
+        if el and roots.some((root) -> contains(root, el))
+            return [el]
+            
+        return []
 
     findClasses = (roots, classes) ->
         els = []
         for root in roots
+            rootEls = []
             for cls in classes
-                for el in root.getElementsByClassName(cls)
-                    els.push(el)
+                rootEls = sel.union(rootEls, root.getElementsByClassName(cls))
+                
+            els = els.concat(rootEls)
             
-        return uniq(els)
+        return els
             
     findTag = (roots, tag) ->
         els = []
