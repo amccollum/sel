@@ -23,10 +23,10 @@
     $._select = (s, r) -> if /^\s*</.test(s) then create(s, r) else sel.sel(s, r)
 
     methods =
-        find: (s) -> sel.sel(s, this)
-        union: (s, r) -> sel.union(this, $(s, r))
-        difference: (s, r) -> sel.difference(this, $(s, r))
-        intersection: (s, r) -> sel.intersection(this, $(s, r))
+        find: (s) -> $(s, this)
+        union: (s, r) -> $(sel.union(this, sel.sel(s, r)))
+        difference: (s, r) -> $(sel.difference(this, sel.sel(s, r)))
+        intersection: (s, r) -> $(sel.intersection(this, sel.sel(s, r)))
     
     methods.and = methods.union
     methods.not = methods.difference
