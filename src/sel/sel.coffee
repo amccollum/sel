@@ -158,8 +158,11 @@
         if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
             val = val.substr(1, val.length - 2)
 
+        if name == 'class'
+            name = 'className'
+                
         return els.filter (el) ->
-            attr = if name == 'class' then el.className else el.getAttribute(name)
+            attr =  el[name] ? el.getAttribute(name)
             value = attr + ""
             
             return attr != null and (
