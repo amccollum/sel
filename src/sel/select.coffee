@@ -4,12 +4,9 @@
         if document.querySelector and document.querySelectorAll
             (selector, roots) -> 
                 try
-                    els = []
-                    for root in roots
-                        for el in root.querySelectorAll(selector)
-                            els.push(el)
-            
-                    return els
+                    return roots.map((root) ->
+                        root.querySelectorAll(selector)
+                    ).reduce(extend, [])
                 
                 catch e
                     return evaluate(parse(selector), roots)
@@ -28,7 +25,7 @@
             if roots.sort
                 roots.sort(elCmp)
                 
-            return subsume(roots)
+            return filterDescendents(roots)
         
         else
             return [roots]

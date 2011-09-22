@@ -4,18 +4,25 @@
         els = []
 
         if roots.length
-            switch m.type 
+            switch m.type
                 when ' ', '>'
-                    # We don't need to search descendents of other roots...
-                    outerRoots = subsume(roots)
+                    # Normally, we're searching all descendents anyway
+                    outerRoots = filterDescendents(roots)
                     els = find(outerRoots, m)
-                
+
                     if m.type == '>'
-                        els = els.filter (el) ->
-                            el and (parent = el.parentNode) and roots.some((root) -> parent == root)
-            
+                        roots.forEach (el) ->
+                            el._sel_mark = true
+                            return
+                            
+                        els = els.filter((el) -> el._sel_mark if (el = el.parentNode))
+
+                        roots.forEach (el) ->
+                            el._sel_mark = false
+                            return
+                            
                     if m.not
-                        els = sel.difference(els, find(roots, m.not))
+                        els = sel.difference(els, find(outerRoots, m.not))
             
                     if m.child
                         els = evaluate(m.child, els)
@@ -25,17 +32,30 @@
                     els = evaluate(m.children[1], roots)
             
                     if m.type == ','
-                        els = sel.union(els, sibs)
+                        # sibs here is just the result of the first selector
+                        els = sel.union(sibs, els)
                     
                     else if m.type == '+'
-                        sibs = sibs.map((el) -> nextElementSibling(el))
-                        sibs.sort(elCmp)
-                        els = sel.intersection(els, sibs)
+                        sibs.forEach (el) ->
+                            el._sel_mark = true if (el = nextElementSibling(el))
+                            return
+                            
+                        els = els.filter((el) -> el._sel_mark)
+                        
+                        sibs.forEach (el) ->
+                            delete el._sel_mark if (el = nextElementSibling(el))
+                            return
                     
                     else if m.type == '~'
-                        els = els.filter (el) ->
-                            el and (parent = el.parentNode) and sibs.some (sib) ->
-                                sib != el and sib.parentNode == parent and elCmp(sib, el) == -1
-                
+                        sibs.forEach (el) ->
+                            el._sel_mark = true while (el = nextElementSibling(el)) and not el._sel_mark
+                            return
+                            
+                        els = els.filter((el) -> el._sel_mark)
+                        
+                        sibs.forEach (el) ->
+                            delete el._sel_mark while ((el = nextElementSibling(el)) and el._sel_mark)
+                            return
+
         return els
 

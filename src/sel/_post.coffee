@@ -1,2 +1,2 @@
-)(exports ? (@sel = {}))
+)(exports ? (@['sel'] = {}))
 

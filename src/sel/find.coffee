@@ -3,26 +3,16 @@
     find = (roots, m) ->
         if m.id
             els = findId(roots, m.id)
-            els = filterTag(els, m.tag) if m.tag
-            els = filterClasses(els, m.classes) if m.classes
 
         else if m.classes and html.getElementsByClassName
             els = findClasses(roots, m.classes)
-            els = filterTag(els, m.tag) if m.tag
+            m.classes = null
         
         else
             els = findTag(roots, m.tag or '*')
-            els = filterClasses(els, m.classes) if m.classes
+            m.tag = null
 
-        if m.attrs
-            for attr in m.attrs
-                els = filterAttr(els, attr.name, attr.op, attr.val)
-
-        if m.pseudos
-            for pseudo in m.pseudos
-                els = filterPseudo(els, pseudo.name, pseudo.val)
-            
-        return els
+        return filterAll(els, m)
 
     findId = (roots, id) ->
         doc = (roots[0].ownerDocument or roots[0])
@@ -33,29 +23,39 @@
         return []
 
     findClasses = (roots, classes) ->
-        els = []
-        for root in roots
-            rootEls = []
-            for cls in classes
-                rootEls = sel.union(rootEls, root.getElementsByClassName(cls))
-                
-            els = els.concat(rootEls)
-            
-        return els
+        roots.map((root) ->
+            classes.map((cls) ->
+                root.getElementsByClassName(cls)
+            ).reduce(sel.union)
+        ).reduce(extend, [])
             
     findTag = (roots, tag) ->
-        els = []
-        for root in roots
-            for el in root.getElementsByTagName(tag)
-                els.push(el)
-    
+        roots.map((root) ->
+            root.getElementsByTagName(tag)
+        ).reduce(extend, [])
+
+    filterAll = (els, m) ->
+        els = filterTag(els, m.tag) if m.tag
+        els = filterClasses(els, m.classes) if m.classes
+
+        if m.attrs
+            m.attrs.forEach (attr) ->
+                els = filterAttr(els, attr.name, attr.op, attr.val)
+                return
+            
+        if m.pseudos
+            m.pseudos.forEach (pseudo) ->
+                els = filterPseudo(els, pseudo.name, pseudo.val)
+                return
+            
         return els
-        
+
     filterTag = (els, tag) -> els.filter((el) -> el.nodeName.toLowerCase() == tag)
 
     filterClasses = (els, classes) ->
-        for cls in classes
+        classes.forEach (cls) ->
             els = filterAttr(els, 'class', '~=', cls)
+            return
                 
         return els
 
@@ -66,8 +66,8 @@
         return els.filter (el) ->
             attr = if name == 'class' then el.className else el.getAttribute(name)
             value = attr + ""
-                
-            attr != null and (
+            
+            return attr != null and (
                 if not op then true
                 else if op == '=' then value == val
                 else if op == '!=' then value != val
