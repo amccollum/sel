@@ -54,23 +54,27 @@
 
     filterClasses = (els, classes) ->
         classes.forEach (cls) ->
-            els = filterAttr(els, 'class', '~=', cls)
+            els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
             return
                 
         return els
 
+    _attrMap = {
+        'tag': 'tagName',
+        'class': 'className',
+    }
+    
     filterAttr = (els, name, op, val) ->
         if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
             val = val.substr(1, val.length - 2)
 
-        if name == 'class'
-            name = 'className'
-                
+        name = _attrMap[name] or name
+
         return els.filter (el) ->
-            attr =  el[name] ? el.getAttribute(name)
+            attr = el[name] ? el.getAttribute(name)
             value = attr + ""
             
-            return attr != null and (
+            return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
                 if not op then true
                 else if op == '=' then value == val
                 else if op == '!=' then value != val
@@ -79,7 +83,7 @@
                 else if op == '$=' then value.substr(value.length - val.length) == val
                 else if op == '~=' then " #{value} ".indexOf(" #{val} ") >= 0
                 else if op == '|=' then value == val or (value.indexOf(val) == 0 and value[val.length] == '-')
-                else false
+                else false # should never get here...
             )
     
     filterPseudo = (els, name, val) ->

@@ -37,24 +37,32 @@
                     
                     else if m.type == '+'
                         sibs.forEach (el) ->
-                            el._sel_mark = true if (el = nextElementSibling(el))
+                            if (el = nextElementSibling(el))
+                                el._sel_mark = true 
+                                
                             return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
                         sibs.forEach (el) ->
-                            delete el._sel_mark if (el = nextElementSibling(el))
+                            if (el = nextElementSibling(el))
+                                el._sel_mark = undefined
+                                
                             return
                     
                     else if m.type == '~'
                         sibs.forEach (el) ->
-                            el._sel_mark = true while (el = nextElementSibling(el)) and not el._sel_mark
+                            while (el = nextElementSibling(el)) and not el._sel_mark
+                                el._sel_mark = true
+                                
                             return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
                         sibs.forEach (el) ->
-                            delete el._sel_mark while ((el = nextElementSibling(el)) and el._sel_mark)
+                            while (el = nextElementSibling(el)) and el._sel_mark
+                                el._sel_mark = undefined
+                                
                             return
 
         return els

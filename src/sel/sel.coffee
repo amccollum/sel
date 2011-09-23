@@ -149,23 +149,27 @@
 
     filterClasses = (els, classes) ->
         classes.forEach (cls) ->
-            els = filterAttr(els, 'class', '~=', cls)
+            els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
             return
                 
         return els
 
+    _attrMap = {
+        'tag': 'tagName',
+        'class': 'className',
+    }
+    
     filterAttr = (els, name, op, val) ->
         if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
             val = val.substr(1, val.length - 2)
 
-        if name == 'class'
-            name = 'className'
-                
+        name = _attrMap[name] or name
+
         return els.filter (el) ->
-            attr =  el[name] ? el.getAttribute(name)
+            attr = el[name] ? el.getAttribute(name)
             value = attr + ""
             
-            return attr != null and (
+            return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
                 if not op then true
                 else if op == '=' then value == val
                 else if op == '!=' then value != val
@@ -174,7 +178,7 @@
                 else if op == '$=' then value.substr(value.length - val.length) == val
                 else if op == '~=' then " #{value} ".indexOf(" #{val} ") >= 0
                 else if op == '|=' then value == val or (value.indexOf(val) == 0 and value[val.length] == '-')
-                else false
+                else false # should never get here...
             )
     
     filterPseudo = (els, name, val) ->
@@ -342,24 +346,32 @@
                     
                     else if m.type == '+'
                         sibs.forEach (el) ->
-                            el._sel_mark = true if (el = nextElementSibling(el))
+                            if (el = nextElementSibling(el))
+                                el._sel_mark = true 
+                                
                             return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
                         sibs.forEach (el) ->
-                            delete el._sel_mark if (el = nextElementSibling(el))
+                            if (el = nextElementSibling(el))
+                                el._sel_mark = undefined
+                                
                             return
                     
                     else if m.type == '~'
                         sibs.forEach (el) ->
-                            el._sel_mark = true while (el = nextElementSibling(el)) and not el._sel_mark
+                            while (el = nextElementSibling(el)) and not el._sel_mark
+                                el._sel_mark = true
+                                
                             return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
                         sibs.forEach (el) ->
-                            delete el._sel_mark while ((el = nextElementSibling(el)) and el._sel_mark)
+                            while (el = nextElementSibling(el)) and el._sel_mark
+                                el._sel_mark = undefined
+                                
                             return
 
         return els
