@@ -41,12 +41,12 @@
         if m.attrs
             m.attrs.forEach (attr) ->
                 els = filterAttr(els, attr.name, attr.op, attr.val)
-                return
+                return # prevent return from forEach
             
         if m.pseudos
             m.pseudos.forEach (pseudo) ->
                 els = filterPseudo(els, pseudo.name, pseudo.val)
-                return
+                return # prevent return from forEach
             
         return els
 
@@ -55,7 +55,7 @@
     filterClasses = (els, classes) ->
         classes.forEach (cls) ->
             els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
-            return
+            return # prevent return from forEach
                 
         return els
 
@@ -63,7 +63,6 @@
         'tag': 'tagName',
         'class': 'className',
     }
-    
     filterAttr = (els, name, op, val) ->
         if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
             val = val.substr(1, val.length - 2)
@@ -86,10 +85,62 @@
                 else false # should never get here...
             )
     
+    # All the positional pseudos and whether or not they are reversed
+    _positionalPseudos = {
+        'nth-child': false
+        'nth-of-type': false
+        'first-child': false
+        'first-of-type': false
+
+        'nth-last-child': true
+        'nth-last-of-type': true
+        'last-child': true
+        'last-of-type': true
+
+        'only-child': false
+        'only-of-type': false
+    }
+    
     filterPseudo = (els, name, val) ->
         pseudo = sel.pseudos[name]
         if not pseudo
             throw new Error("no pseudo with name: #{name}")
         
-        return els.filter((el) -> pseudo(el, val))
+        if name of _positionalPseudos
+            first = if _positionalPseudos[name] then 'lastChild' else 'firstChild'
+            next = if _positionalPseudos[name] then 'previousSibling' else 'nextSibling'
+            
+            els.forEach (el) ->
+                indices = { '*': 0 }
+                el = (parent = el.parentNode) and parent[first]
+                while el
+                    if el.nodeType == 1
+                        return if el._sel_index != undefined
+                        el._sel_index = ++indices['*']
+                        el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
+            
+                    el = el[next]
+                    
+                if parent
+                    parent._sel_children = indices
+                    
+                return # prevent return from forEach
+            
+        filtered = els.filter((el) -> pseudo(el, val))
 
+        if name of _positionalPseudos
+            els.forEach (el) ->
+                el = (parent = el.parentNode) and parent[first]
+                while el
+                    if el.nodeType == 1
+                        return if el._sel_index == undefined
+                        el._sel_index = el._sel_indexOfType = undefined
+        
+                    el = el[next]
+                        
+                if parent
+                    parent._sel_children = undefined
+                    
+                return # prevent return from forEach
+                    
+        return filtered

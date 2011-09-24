@@ -1,8 +1,8 @@
-Sel - Sizzle, but smaller
+Sel - Sizzle, but smaller (and faster!)
 ===
 Sel is a tiny selector engine that has all of the power of Sizzle in about half the code size.
 
-Sel uses <code>querySelectorAll</code> when available, but will fallback on the custom engine when qSA fails.
+Sel uses `querySelectorAll` when it's available, but will fallback on the custom engine when qSA fails.
 
 Support
 -------
@@ -11,7 +11,8 @@ Sel supports all of the [CSS3 selectors](http://www.w3.org/TR/css3-selectors/#se
 ``` css
 [attr!=val]
 :contains(text)
-:has(selector)
+:with(selector) /* or :has(selector) */
+:without(selector)
 ```
 
 Roots
@@ -36,18 +37,20 @@ Adding a custom pseudo-selector is easy:
 sel.pseudos.radio = function (el, val) {
     return el.nodeName.toLowerCase() === "input" && el.type === "radio";
 };
+
+sel.sel('input:radio');
 ```
 
 The function is passed the current element and an option value that was passed to the pseudo-selector, and it
 should return `true` if the element matches the pseudo-selector and `false` otherwise.
 
 ``` js
-sel.sel('div:foo(bar)');
-
 sel.pseudos.foo = function (el, val) {
     // val === 'bar'
     return el.getAttribute('foo') === val;
 }
+
+sel.sel('div:foo(bar)');
 ```
 
 Ender

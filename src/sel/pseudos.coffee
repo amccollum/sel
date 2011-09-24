@@ -2,26 +2,6 @@
 
     nthPattern = /\s*((?:\+|\-)?(\d*))n\s*((?:\+|\-)\s*\d+)?\s*/;
 
-    childIndex = (el, reversed, ofType) ->
-        start = if reversed then 'lastChild' else 'firstChild'
-        next = if reversed then 'previousSibling' else 'nextSibling'
-    
-        index = 0
-        node = el.parentNode and el.parentNode[start]
-        while node
-            if ofType and node.nodeName != ofType
-                continue
-            
-            if node.nodeType == 1
-                index++
-        
-            if node == el
-                return index
-            
-            node = node[next]
-
-        return NaN
-
     checkNth = (i, val) ->
         if not val then false
         else if isFinite(val) then `i == val`
@@ -37,18 +17,13 @@
         else throw new Error('invalid nth expression')
 
     sel.pseudos = 
-        'nth-child': (el, val) -> checkNth(childIndex(el), val)
-        'nth-last-child': (el, val) -> checkNth(childIndex(el, true), val)
-        'nth-of-type': (el, val) -> checkNth(childIndex(el, false, el.nodeName), val)
-        'nth-last-of-type': (el, val) -> checkNth(childIndex(el, true, el.nodeName), val)
-    
-        'first-child': (el) -> childIndex(el) == 1
-        'last-child': (el) -> childIndex(el, true) == 1
-        'first-of-type': (el) -> childIndex(el, false, el.nodeName) == 1
-        'last-of-type': (el) -> childIndex(el, true, el.nodeName) == 1
-    
-        'only-child': (el) -> childIndex(el) == 1 and childIndex(el, true) == 1
-        'only-of-type': (el) -> childIndex(el, false, el.nodeName) == 1 and childIndex(el, true, el.nodeName) == 1
+        # See filterPseudo for how the el._sel_* values get set
+        'nth-child': (el, val) -> checkNth(el._sel_index, val)
+        'nth-of-type': (el, val) -> checkNth(el._sel_indexOfType, val)
+        'first-child': (el) -> el._sel_index == 1
+        'first-of-type': (el) -> el._sel_indexOfType == 1
+        'only-child': (el) -> el._sel_index == 1 and el.parentNode._sel_children['*'] == 1
+        'only-of-type': (el) -> el._sel_indexOfType == 1 and el.parentNode._sel_children[el.nodeName] == 1
 
         target: (el) -> (el.getAttribute('id') == location.hash.substr(1))
         checked: (el) -> el.checked == true
@@ -59,6 +34,19 @@
         empty: (el) -> not el.childNodes.length
 
         contains: (el, val) -> (el.textContent ? el.innerText).indexOf(val) >= 0
-    	has: (el, val) -> select(val, [el]).length > 0
+        with: (el, val) -> select(val, [el]).length > 0
+        without: (el, val) -> select(val, [el]).length == 0
 
+    _synonyms = {
+        'has': 'with',
+        
+        # For these methods, the reversing is done in filterPseudo
+        'nth-last-child': 'nth-child',
+        'nth-last-of-type': 'nth-of-type',
+        'last-child': 'first-child',
+        'last-of-type': 'first-of-type',
+    }
+    
+    for synonym, name of _synonyms
+        sel.pseudos[synonym] = sel.pseudos[name]
 
