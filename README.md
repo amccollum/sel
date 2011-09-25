@@ -23,7 +23,7 @@ You can also pass a root context to select from a subset of the document:
 sel.sel('div', node); // a DOM node
 sel.sel('div', [node1, node2, node3]); // a list of DOM nodes
 sel.sel('div', '#foo'); // a selector
-sel.sel('div', sel.sel(div)); // previous result set
+sel.sel('div', sel.sel('div')); // previous result set
 ```
 
 Unlike Sizzle, which only supports using a single root node, Sel can use any number of nodes as roots for the query.
