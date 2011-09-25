@@ -1,16 +1,32 @@
     ### select.coffee ###
 
+    parentMap = {
+        thead: 'table',
+        tbody: 'table',
+        tfoot: 'table',
+        tr: 'tbody',
+        th: 'tr',
+        td: 'tr',
+        fieldset: 'form',
+        option: 'select',
+    }
+    
+    tagPattern = /^\s*<([^\s>]+)/
+
+    create = (html, root) ->
+        parent = (root or document).createElement(parentMap[tagPattern.exec(html)[1]] or 'div')
+        parent.innerHTML = html
+
+        els = []
+        eachElement parent, 'firstChild', 'nextSibling', (el) -> els.push(el)
+        return els
+
     select =
+        # See whether we should try qSA first
         if document.querySelector and document.querySelectorAll
-            (selector, roots) -> 
-                try
-                    return roots.map((root) ->
-                        root.querySelectorAll(selector)
-                    ).reduce(extend, [])
-                
-                catch e
-                    return evaluate(parse(selector), roots)
-            
+            (selector, roots) ->
+                try roots.map((root) -> root.querySelectorAll(selector)).reduce(extend, [])
+                catch e then evaluate(parse(selector), roots)
         else
             (selector, roots) -> evaluate(parse(selector), roots)
 
@@ -22,9 +38,7 @@
             return select(roots, [document])
         
         else if typeof roots == 'object' and isFinite(roots.length)
-            if roots.sort
-                roots.sort(elCmp)
-                
+            roots.sort(elCmp) if roots.sort
             return filterDescendents(roots)
         
         else
@@ -35,15 +49,22 @@
 
         if not selector
             return []
+            
+        else if tagPattern.test(selector)
+            return create(selector, roots[0])
+            
         else if selector in [window, 'window']
             return [window]
+            
         else if selector in [document, 'document']
             return [document]
+            
         else if selector.nodeType == 1
             if roots.some((root) -> contains(root, selector))
                 return [selector]
             else
                 return []
+                
         else
             return select(selector, roots)
 

@@ -8,6 +8,25 @@
     
         return a
                     
+    eachElement = (el, first, next, fn) ->
+        el = el[first]
+        while (el)
+            fn(el) if el.nodeType == 1
+            el = el[next]
+            
+        return
+
+    nextElementSibling =
+        if html.nextElementSibling
+            (el) -> el.nextElementSibling
+        else
+            (el) ->
+                el = el.nextSibling
+                while (el and el.nodeType != 1)
+                    el = el.nextSibling
+                
+                return el
+
     contains =
         if html.compareDocumentPosition?
             (a, b) -> (a.compareDocumentPosition(b) & 16) == 16
@@ -25,39 +44,23 @@
 
                 return false
 
-    comparePosition = 
+    elCmp =
         if html.compareDocumentPosition
-            (a, b) -> a.compareDocumentPosition(b)
-    
-        else
             (a, b) ->
-                (a != b and a.contains(b) and 16) +
-                (a != b and b.contains(a) and 8) +
-                (if a.sourceIndex < 0 or b.sourceIndex < 0 then 1 else
-                    (a.sourceIndex < b.sourceIndex and 4) +
-                    (a.sourceIndex > b.sourceIndex and 2))
-
-    nextElementSibling =
-        if html.nextElementSibling
-            (el) -> el.nextElementSibling
-        else
-            (el) ->
-                while (el = el.nextSibling)
-                    return el if el.nodeType == 1
+                if a == b then 0
+                else if a.compareDocumentPosition(b) & 4 then -1
+                else 1
                 
-                return null
-
-    elCmp = (a, b) ->
-        if not a then return -1
-        else if not b then return 1
-        else if a == b then return 0
-        else if comparePosition(a, b) & 4 then -1
-        else 1
+        else if html.sourceIndex
+            (a, b) ->
+                if a == b then 0
+                else if a.sourceIndex < b.sourceIndex then -1
+                else 0
 
     # Return the topmost ancestors of the element array
     filterDescendents = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
 
-    # Helper function for combining sorted arrays in various ways
+    # Helper function for combining sorted element arrays in various ways
     combine = (a, b, aRest, bRest, map) ->
         r = []
         i = 0
@@ -83,7 +86,7 @@
 
         return r
     
-    # Define these operations in terms of element operations to reduce code size
+    # Define these operations in terms of the above element operations to reduce code size
     sel.union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
     sel.intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
     sel.difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}

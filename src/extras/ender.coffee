@@ -1,26 +1,7 @@
 (($) ->
     sel = require('sel')
 
-    nodeMap = {
-        thead: 'table',
-        tbody: 'table',
-        tfoot: 'table',
-        tr: 'tbody',
-        th: 'tr',
-        td: 'tr',
-        fieldset: 'form',
-        option: 'select',
-    }
-    
-    tagPattern = /^\s*<([^\s>]+)/
-
-    create = (html, root) ->
-        tag = tagPattern.exec(html)[1]
-        parent = (root or document).createElement(nodeMap[tag] or 'div')
-        parent.innerHTML = html
-        return (el for el in parent.childNodes when el.nodeType == 1)
-
-    $._select = (s, r) -> if /^\s*</.test(s) then create(s, r) else sel.sel(s, r)
+    $._select = sel.sel
 
     methods =
         find: (s) -> $(s, this)
@@ -28,6 +9,7 @@
         difference: (s, r) -> $(sel.difference(this, sel.sel(s, r)))
         intersection: (s, r) -> $(sel.intersection(this, sel.sel(s, r)))
     
+    # Method synonyms (these are the names jQuery uses)
     methods.and = methods.union
     methods.not = methods.difference
     methods.filter = methods.intersection

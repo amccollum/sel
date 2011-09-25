@@ -37,24 +37,22 @@
     ///
 
     selectorGroups = {
-        all: 0, tag: 1, id: 2, classes: 3,
+        tag: 1, id: 2, classes: 3,
         attrsAll: 4, pseudosAll: 8,
         combinator: 11, comma: 12
     }
 
-    attrGroups = ['attrName', 'attrOp', 'attrVal']
-    pseudoGroups = ['pseudoName', 'pseudoVal']
-
-    parseChunk = (state) ->
+    parseSimple = (type, state) ->
         rest = state.selector.substr(state.selector.length - state.left)
         if not (m = selectorPattern.exec(rest))
-             throw new Error('Parse error.')
+             throw new Error("Parse error: #{rest}")
 
+        state.left -= m[0].length
+    
         for name, group of selectorGroups
             m[name] = m[group]
 
-        state.left -= m.all.length
-    
+        m.type = type
         m.tag = m.tag.toLowerCase() if m.tag
         m.classes = m.classes.toLowerCase().split('.') if m.classes
 
@@ -73,19 +71,14 @@
                     m.pseudos.push({name: name, val: val})
                 
                 return ""
-            
+        
+        # The combinator determines the next type being parsed
         if not state.left
             m.combinator = '$'
         else if m.comma
             m.combinator = ','
         else
             m.combinator = m.combinator.trim() or ' '
-
-        return m
-
-    parseSimple = (type, state) ->
-        m = parseChunk(state)
-        m.type = type
 
         switch m.combinator
             # descending selectors

@@ -40,7 +40,7 @@
                             if (el = nextElementSibling(el))
                                 el._sel_mark = true 
                                 
-                            return
+                            return # prevent useless return from forEach
                             
                         els = els.filter((el) -> el._sel_mark)
                         
@@ -48,14 +48,14 @@
                             if (el = nextElementSibling(el))
                                 el._sel_mark = undefined
                                 
-                            return
+                            return # prevent useless return from forEach
                     
                     else if m.type == '~'
                         sibs.forEach (el) ->
                             while (el = nextElementSibling(el)) and not el._sel_mark
                                 el._sel_mark = true
                                 
-                            return
+                            return # prevent useless return from forEach
                             
                         els = els.filter((el) -> el._sel_mark)
                         
@@ -63,7 +63,7 @@
                             while (el = nextElementSibling(el)) and el._sel_mark
                                 el._sel_mark = undefined
                                 
-                            return
+                            return # prevent useless return from forEach
 
         return els
 
