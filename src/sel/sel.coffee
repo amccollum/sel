@@ -59,13 +59,14 @@
     # Return the topmost ancestors of the element array
     filterDescendents = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
 
-    combine = (a, b, aRest, bRest, fn) ->
+    # Helper function for combining sorted arrays in various ways
+    combine = (a, b, aRest, bRest, map) ->
         r = []
         i = 0
         j = 0
 
         while i < a.length and j < b.length
-            switch fn(a[i], b[j])
+            switch map[elCmp(a[i], b[j])]
                 when -1 then i++
                 when -2 then j++
                 when 1 then r.push(a[i++])
@@ -84,14 +85,10 @@
 
         return r
     
-    _unionMap = {'0': 0, '-1': 1, '1': 2}
-    sel.union = (a, b) -> combine a, b, true, true, (ai, bi) -> _unionMap[elCmp(ai, bi)]
-
-    _intersectionMap = {'0': 0, '-1': -1, '1': -2}
-    sel.intersection = (a, b) -> combine a, b, false, false, (ai, bi) -> _intersectionMap[elCmp(ai, bi)]
-
-    _differenceMap = {'0': -1, '-1': 1, '1': -2}
-    sel.difference = (a, b) -> combine a, b, true, false, (ai, bi) -> _differenceMap[elCmp(ai, bi)]
+    # Define these operations in terms of element operations to reduce code size
+    sel.union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
+    sel.intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
+    sel.difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
 
     ### find.coffee ###
 
