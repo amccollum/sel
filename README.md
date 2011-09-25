@@ -41,7 +41,7 @@ sel.pseudos.radio = function (el, val) {
 sel.sel('input:radio');
 ```
 
-The function is passed the current element and an option value that was passed to the pseudo-selector, and it
+The function is passed the current element and, optionally, the value that was passed to the pseudo-selector. It
 should return `true` if the element matches the pseudo-selector and `false` otherwise.
 
 ``` js
