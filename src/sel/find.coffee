@@ -25,11 +25,11 @@
     find = (roots, m) ->
         if m.id
             # Find by id
-            for root in roots
+            els = []
+            roots.forEach (root) ->
                 el = (root.ownerDocument or root).getElementById(m.id)
-                if el and contains(root, el)
-                    els = [el]
-                    break
+                els.push(el) if el and contains(root, el)
+                return # prevent useless return from forEach
             
         else if m.classes and html.getElementsByClassName
             # Find by class
