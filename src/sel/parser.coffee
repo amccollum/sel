@@ -33,13 +33,13 @@
             # pseudo
             ( #{pseudoPattern.source}* )
 
-        ) ( [+~>\s]+ )? (,)? # combinator
+        ) ( \s*, | [+~>\s]+ )? # combinator
     ///
 
     selectorGroups = {
         tag: 1, id: 2, classes: 3,
         attrsAll: 4, pseudosAll: 8,
-        combinator: 11, comma: 12
+        combinator: 11
     }
 
     parseSimple = (type, state) ->
@@ -73,12 +73,7 @@
                 return ""
         
         # The combinator determines the next type being parsed
-        if not state.left
-            m.combinator = '$'
-        else if m.comma
-            m.combinator = ','
-        else
-            m.combinator = m.combinator.trim() or ' '
+        m.combinator = if not state.left then '$' else (m.combinator.trim() or ' ')
 
         switch m.combinator
             # descending selectors

@@ -12,7 +12,6 @@
     # Method synonyms (these are the names jQuery uses)
     methods.and = methods.union
     methods.not = methods.difference
-    methods.filter = methods.intersection
 
     $.pseudos = sel.pseudos
     $.ender(methods, true)

@@ -124,7 +124,6 @@
                 if name of _positionalPseudos
                     els.forEach (el) ->
                         if (parent = el.parentNode) and parent._sel_children != undefined
-                            indices = { '*': 0 }
                             eachElement parent, first, next, (el) ->
                                 el._sel_index = el._sel_indexOfType = undefined
                                 

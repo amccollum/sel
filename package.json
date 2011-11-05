@@ -1,6 +1,6 @@
 {
     "name": "sel",
-    "version": "0.4.3",
+    "version": "0.5.3",
     "description": "Tiny, yet full-featured, selector library",
     "keywords": ["ender", "css", "selector engine", "jquery"],
     "author": "Andrew McCollum <amccollum@gmail.com>",
@@ -21,6 +21,7 @@
     
     "devDependencies": {
         "coffee-script": "*",
-        "ender": "*"
+        "ender": "*",
+        "ender-vows": "*"
     }
 }

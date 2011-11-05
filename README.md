@@ -68,7 +68,7 @@ $('.baz').difference('.bat')        // Same as $('.baz:not(.bat)')
 $('.qux').intersection('.thud')     // Same as $('.qux.thud')
 ```
 
-You can also use the synonyms `and`, `not`, and `filter`, respectively, for the latter three methods.
+You can also use the synonyms `and` and `not`, for `union` and `difference`, respectively.
 
 Browser Support
 ---------------

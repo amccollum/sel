@@ -21,18 +21,18 @@ task 'build', 'Build the library', ->
 
 task 'test', 'Build the test suite', ->
     execCmds [
-        'rm -rf test',
+        'cake build',
+
         'coffee --compile --bare --output test src/test/*.coffee',
-        
-        'cp src/test/index.html test',
-        'cp src/test/template.html test',
-        'cp src/test/vows.css test',
+        'ln -sf ../src/test/index.html test',
+        'ln -sf ../src/test/template.html test',
+        'ln -sf ../src/test/vows.css test',
 
         'npm install --dev',
+        'ln -sfh ender-vows node_modules/vows',
 
-        'ln -s .. node_modules/sel',
-        'node_modules/.bin/ender build es5-basic domready node-compat ender-vows sel qwery sizzle',
-        'unlink node_modules/sel',
-
-        'mv ender.js ender.min.js test',
+        'pushd test',
+        'ln -sfh ../node_modules node_modules',
+        'node_modules/.bin/ender build ender-vows ..',
+        'popd test',
     ]

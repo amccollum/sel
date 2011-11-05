@@ -6,7 +6,7 @@
         if roots.length
             switch m.type
                 when ' ', '>'
-                    # Normally, we're searching all descendents anyway
+                    # We only need to search from the outermost roots
                     outerRoots = filterDescendents(roots)
                     els = find(outerRoots, m)
 
@@ -14,7 +14,7 @@
                         roots.forEach (el) ->
                             el._sel_mark = true
                             return
-                            
+                        
                         els = els.filter((el) -> el._sel_mark if (el = el.parentNode))
 
                         roots.forEach (el) ->

@@ -17,7 +17,7 @@
         else throw new Error('invalid nth expression')
 
     sel.pseudos = 
-        # See filterPseudo for how el._sel_* values get set
+        # See filter() for how el._sel_* values get set
         'first-child': (el) -> el._sel_index == 1
         'only-child': (el) -> el._sel_index == 1 and el.parentNode._sel_children['*'] == 1
         'nth-child': (el, val) -> checkNth(el._sel_index, val)
