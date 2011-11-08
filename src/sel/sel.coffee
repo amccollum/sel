@@ -523,7 +523,7 @@
             return [document]
             
         else if selector.nodeType == 1
-            if roots.some((root) -> contains(root, selector))
+            if not selector.parentNode or roots.some((root) -> contains(root, selector))
                 return [selector]
             else
                 return []
