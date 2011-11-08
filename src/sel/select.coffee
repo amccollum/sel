@@ -50,6 +50,9 @@
         if not selector
             return []
             
+        else if Array.isArray(selector)
+            return selector
+            
         else if tagPattern.test(selector)
             return create(selector, roots[0])
             
