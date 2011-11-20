@@ -55,7 +55,7 @@
             (a, b) ->
                 if a == b then 0
                 else if a.sourceIndex < b.sourceIndex then -1
-                else 0
+                else 1
 
     # Return the topmost ancestors of the element array
     filterDescendents = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
