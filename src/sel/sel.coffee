@@ -208,6 +208,7 @@
                             eachElement parent, first, next, (el) ->
                                 el._sel_index = ++indices['*']
                                 el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
+                                return # prevent useless return from eachElement
                     
                             parent._sel_children = indices
                     
@@ -221,6 +222,7 @@
                         if (parent = el.parentNode) and parent._sel_children != undefined
                             eachElement parent, first, next, (el) ->
                                 el._sel_index = el._sel_indexOfType = undefined
+                                return # prevent useless return from eachElement
                                 
                             parent._sel_children = undefined
                     

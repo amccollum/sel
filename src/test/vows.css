@@ -11,10 +11,6 @@ body {
     padding: 20px;
 }
 
-#vows-results div {
-    /*display: inline;*/
-}
-
 .success {
     color: #99C270;
 }
