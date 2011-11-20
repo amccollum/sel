@@ -12,7 +12,7 @@ body {
 }
 
 #vows-results div {
-    display: inline;
+    /*display: inline;*/
 }
 
 .success {
