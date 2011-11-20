@@ -68,9 +68,12 @@ testTopic = (lib, success) ->
     el.style.height = 0
     el.style.display = 'none'
     el.style.visibility = 'hidden'
-    el.onload = () ->
+    onload = ->
         success(lib, el.contentDocument)
-    
+    if window.addEventListener
+        el.addEventListener 'load', onload
+    else
+        el.attachEvent 'onload', onload
     document.body.appendChild(el)
     return
     

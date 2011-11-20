@@ -11,9 +11,9 @@ execCmds = (cmds) ->
 
 task 'build', 'Build the library', ->
     execCmds [
-        'pushd src/sel',
+        'cd src/sel',
         'cat _pre.coffee util.coffee find.coffee pseudos.coffee parser.coffee eval.coffee select.coffee _post.coffee > sel.coffee',
-        'popd',
+        'cd ../..',
         'coffee --compile --bare --output lib src/sel/sel.coffee',
         'coffee --compile --bare --output lib src/extras/ender.coffee',
     ]
@@ -28,10 +28,10 @@ task 'test', 'Build the test suite', ->
         'ln -sf ../src/test/vows.css test',
 
         'npm install --dev',
-        'ln -sfh ender-vows node_modules/vows',
+        'ln -sfn ender-vows node_modules/vows',
 
-        'pushd test',
-        'ln -sfh ../node_modules node_modules',
+        'cd test',
+        'ln -sfn ../node_modules node_modules',
         'node_modules/.bin/ender build ender-vows ..',
-        'popd test',
+        'cd ..',
     ]
