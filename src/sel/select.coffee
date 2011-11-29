@@ -44,8 +44,8 @@
         else
             return [roots]
 
-    sel.sel = (selector, roots) ->
-        roots = normalizeRoots(roots)
+    sel.sel = (selector, _roots) ->
+        roots = normalizeRoots(_roots)
 
         if not selector
             return []
@@ -63,7 +63,7 @@
             return [document]
             
         else if selector.nodeType == 1
-            if not selector.parentNode or roots.some((root) -> contains(root, selector))
+            if not _roots or roots.some((root) -> contains(root, selector))
                 return [selector]
             else
                 return []
