@@ -71,3 +71,4 @@
         else
             return select(selector, roots)
 
+    sel.matching = (els, selector) -> filter(els, parse(selector))

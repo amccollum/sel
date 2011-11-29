@@ -8,6 +8,7 @@
         union: (s, r) -> $(sel.union(this, sel.sel(s, r)))
         difference: (s, r) -> $(sel.difference(this, sel.sel(s, r)))
         intersection: (s, r) -> $(sel.intersection(this, sel.sel(s, r)))
+        matching: (s) -> $(sel.matching(this, s))
     
     # Method synonyms (these are the names jQuery uses)
     methods.and = methods.union

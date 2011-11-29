@@ -536,5 +536,5 @@
         else
             return select(selector, roots)
 
-)(exports ? (@['sel'] = {}))
+    sel.matching = (els, selector) -> filter(els, parse(selector)))(exports ? (@['sel'] = {}))
 
