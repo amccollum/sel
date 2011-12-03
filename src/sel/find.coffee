@@ -1,11 +1,12 @@
     ### find.coffee ###
 
+    # Attributes that we get directly off the node
     _attrMap = {
         'tag': 'tagName',
         'class': 'className',
     }
 
-    # All the positional pseudos and whether or not they are reversed
+    # Map of all the positional pseudos and whether or not they are reversed
     _positionalPseudos = {
         'nth-child': false
         'nth-of-type': false
@@ -22,63 +23,68 @@
     }
     
 
-    find = (roots, m) ->
-        if m.id
+    find = (e, roots) ->
+        if e.id
             # Find by id
             els = []
             roots.forEach (root) ->
-                el = (root.ownerDocument or root).getElementById(m.id)
+                el = (root.ownerDocument or root).getElementById(e.id)
                 els.push(el) if el and contains(root, el)
                 return # prevent useless return from forEach
             
-        else if m.classes and html.getElementsByClassName
+            # Don't need to filter on id
+            e.id = null
+        
+        else if e.classes and html.getElementsByClassName
             # Find by class
             els = roots.map((root) ->
-                m.classes.map((cls) ->
+                e.classes.map((cls) ->
                     root.getElementsByClassName(cls)
                 ).reduce(sel.union)
             ).reduce(extend, [])
 
             # Don't need to filter on class
-            m.classes = null
+            e.classes = null
         
         else
             # Find by tag
             els = roots.map((root) ->
-                root.getElementsByTagName(m.tag or '*')
+                root.getElementsByTagName(e.tag or '*')
             ).reduce(extend, [])
 
             # Don't need to filter on tag
-            m.tag = null
+            e.tag = null
 
         if els and els.length
-            return filter(els, m)
+            return filter(e, els)
         else
             return []
 
 
-    filter = (els, m) ->
-        if m.tag
+    filter = (e, els) ->
+        if e.id
+            # Filter by id
+            els = els.filter((el) -> el.id == e.id)
+            
+        if e.tag and e.tag != '*'
             # Filter by tag
-            els = els.filter((el) -> el.nodeName.toLowerCase() == m.tag)
+            els = els.filter((el) -> el.nodeName.toLowerCase() == e.tag)
         
-        if m.classes
+        if e.classes
             # Filter by class
-            m.classes.forEach (cls) ->
+            e.classes.forEach (cls) ->
                 els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
                 return # prevent useless return from forEach
 
-        if m.attrs
+        if e.attrs
             # Filter by attribute
-            m.attrs.forEach ({name, op, val}) ->
+            e.attrs.forEach ({name, op, val}) ->
                 
-                name = _attrMap[name] or name
-
                 if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
                     val = val.substr(1, val.length - 2)
 
                 els = els.filter (el) ->
-                    attr = el[name] ? el.getAttribute(name)
+                    attr = if _attrMap[name] then el[_attrMap[name]] else el.getAttribute(name)
                     value = attr + ""
             
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
@@ -95,9 +101,9 @@
 
                 return # prevent useless return from forEach
             
-        if m.pseudos
+        if e.pseudos
             # Filter by pseudo
-            m.pseudos.forEach ({name, val}) ->
+            e.pseudos.forEach ({name, val}) ->
 
                 pseudo = sel.pseudos[name]
                 if not pseudo

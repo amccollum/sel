@@ -1,107 +1,103 @@
     ### parser.coffee ###
 
     attrPattern = ///
-        (?:
-            \[
-                \s* ([-\w]+) \s*
-                (?: ([~|^$*!]?=) \s* ( [-\w]+ | ['"][^'"]*['"] ) \s* )?
-            \]
-        )
+        \[
+            \s* ([-\w]+) \s*
+            (?: ([~|^$*!]?=) \s* ( [-\w]+ | ['"][^'"]*['"] ) \s* )?
+        \]
     ///g
 
     pseudoPattern = ///
-        (?:
-            ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
-        )
+        ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
     ///g
-
-    selectorPattern = ///
-        ^ \s*
-        (?:
-            # tag
-            (?: (\* | \w+) )?
-
-            # id
-            (?: \# ([-\w]+) )?
-
-            # classes
-            (?: \. ([-\.\w]+) )?
-
-            # attributes
-            ( #{attrPattern.source}* )
     
-            # pseudo
-            ( #{pseudoPattern.source}* )
+    combinatorPattern = /// ^ \s* ([,+~]) ///
+    
+    selectorPattern = /// ^ 
+        
+        (?: \s* (>) )? # child selector
+        
+        \s*
+        
+        # tag
+        (?: (\* | \w+) )?
 
-        ) ( \s*, | [+~>\s]+ )? # combinator
+        # id
+        (?: \# ([-\w]+) )?
+
+        # classes
+        (?: \. ([-\.\w]+) )?
+
+        # attrs
+        ( (?: #{attrPattern.source} )* )
+
+        # pseudos
+        ( (?: #{pseudoPattern.source} )* )
+
     ///
 
     selectorGroups = {
-        tag: 1, id: 2, classes: 3,
-        attrsAll: 4, pseudosAll: 8,
-        combinator: 11
+        type: 1, tag: 2, id: 3, classes: 4,
+        attrsAll: 5, pseudosAll: 9
     }
 
-    parseSimple = (type, state) ->
-        rest = state.selector.substr(state.selector.length - state.left)
-        if not (m = selectorPattern.exec(rest))
-             throw new Error("Parse error: #{rest}")
-
-        state.left -= m[0].length
-    
-        for name, group of selectorGroups
-            m[name] = m[group]
-
-        m.type = type
-        m.tag = m.tag.toLowerCase() if m.tag
-        m.classes = m.classes.toLowerCase().split('.') if m.classes
-
-        if m.attrsAll
-            m.attrs = []
-            m.attrsAll.replace attrPattern, (all, name, op, val) ->
-                m.attrs.push({name: name, op: op, val: val})
-                return ""
-        
-        if m.pseudosAll
-            m.pseudos = []
-            m.pseudosAll.replace pseudoPattern, (all, name, val) ->
-                if name == 'not'
-                    m.not = parse(val)
-                else
-                    m.pseudos.push({name: name, val: val})
-                
-                return ""
-        
-        # The combinator determines the next type being parsed
-        m.combinator = if not state.left then '$' else (m.combinator.trim() or ' ')
-
-        switch m.combinator
-            # descending selectors
-            when ' ', '>'
-                m.child = parseSimple(m.combinator, state)
-    
-            # combining selectors
-            when '+', '~', ','
-                state.rewind = m.combinator
-        
-            # end of input
-            when '$'
-                state.rewind = null
-        
-        return m
-
     parse = (selector) ->
-        state = {
-            selector: selector,
-            left: selector.length,
-        }
+        result = last = parseSimple(selector)
+        
+        if last.compound
+            last.children = []
+        
+        while last[0].length < selector.length
+            selector = selector.substr(last[0].length)
+            e = parseSimple(selector)
+            
+            if e.compound
+                e.children = [result]
+                result = e
+                
+            else if last.compound
+                last.children.push(e)
+                
+            else
+                last.child = e
+                
+            last = e
 
-        m = parseSimple(' ', state)
-        while state.rewind
-            m = {
-                type: state.rewind,
-                children: [m, parseSimple(' ', state)],
-            }
+        return result
 
-        return m
+    parseSimple = (selector) ->
+        if e = combinatorPattern.exec(selector)
+            e.compound = true
+            e.type = e[1]
+            
+        else if e = selectorPattern.exec(selector)
+            e.simple = true
 
+            for name, group of selectorGroups
+                e[name] = e[group]
+
+            e.type or= ' '
+        
+            e.tag = e.tag.toLowerCase() if e.tag
+            e.classes = e.classes.toLowerCase().split('.') if e.classes
+
+            if e.attrsAll
+                e.attrs = []
+                e.attrsAll.replace attrPattern, (all, name, op, val) ->
+                    e.attrs.push({name: name, op: op, val: val})
+                    return ""
+
+            if e.pseudosAll
+                e.pseudos = []
+                e.pseudosAll.replace pseudoPattern, (all, name, val) ->
+                    if name == 'not'
+                        e.not = parse(val)
+                    else
+                        e.pseudos.push({name: name, val: val})
+        
+                    return ""
+            
+        else
+            throw new Error("Parse error at: #{selector}")
+
+        return e

@@ -9,7 +9,7 @@
             a.push(x)
     
         return a
-                    
+        
     eachElement = (el, first, next, fn) ->
         el = el[first]
         while (el)
@@ -53,7 +53,7 @@
                 else if a.compareDocumentPosition(b) & 4 then -1
                 else 1
                 
-        else if html.sourceIndex
+        else if html.sourceIndex                                                    
             (a, b) ->
                 if a == b then 0
                 else if a.sourceIndex < b.sourceIndex then -1
@@ -61,6 +61,19 @@
 
     # Return the topmost ancestors of the element array
     filterDescendents = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
+
+    # Return all the parent nodes of the element array
+    parents = (els) ->
+        r = []
+        
+        els.forEach (el) ->
+            parent = el.parentNode
+            if parent and parent != r[r.length-1]
+                r.push(parent)
+                
+            return
+            
+        return r
 
     # Helper function for combining sorted element arrays in various ways
     combine = (a, b, aRest, bRest, map) ->
@@ -95,12 +108,13 @@
 
     ### find.coffee ###
 
+    # Attributes that we get directly off the node
     _attrMap = {
         'tag': 'tagName',
         'class': 'className',
     }
 
-    # All the positional pseudos and whether or not they are reversed
+    # Map of all the positional pseudos and whether or not they are reversed
     _positionalPseudos = {
         'nth-child': false
         'nth-of-type': false
@@ -117,63 +131,68 @@
     }
     
 
-    find = (roots, m) ->
-        if m.id
+    find = (e, roots) ->
+        if e.id
             # Find by id
             els = []
             roots.forEach (root) ->
-                el = (root.ownerDocument or root).getElementById(m.id)
+                el = (root.ownerDocument or root).getElementById(e.id)
                 els.push(el) if el and contains(root, el)
                 return # prevent useless return from forEach
             
-        else if m.classes and html.getElementsByClassName
+            # Don't need to filter on id
+            e.id = null
+        
+        else if e.classes and html.getElementsByClassName
             # Find by class
             els = roots.map((root) ->
-                m.classes.map((cls) ->
+                e.classes.map((cls) ->
                     root.getElementsByClassName(cls)
                 ).reduce(sel.union)
             ).reduce(extend, [])
 
             # Don't need to filter on class
-            m.classes = null
+            e.classes = null
         
         else
             # Find by tag
             els = roots.map((root) ->
-                root.getElementsByTagName(m.tag or '*')
+                root.getElementsByTagName(e.tag or '*')
             ).reduce(extend, [])
 
             # Don't need to filter on tag
-            m.tag = null
+            e.tag = null
 
         if els and els.length
-            return filter(els, m)
+            return filter(e, els)
         else
             return []
 
 
-    filter = (els, m) ->
-        if m.tag
+    filter = (e, els) ->
+        if e.id
+            # Filter by id
+            els = els.filter((el) -> el.id == e.id)
+            
+        if e.tag and e.tag != '*'
             # Filter by tag
-            els = els.filter((el) -> el.nodeName.toLowerCase() == m.tag)
+            els = els.filter((el) -> el.nodeName.toLowerCase() == e.tag)
         
-        if m.classes
+        if e.classes
             # Filter by class
-            m.classes.forEach (cls) ->
+            e.classes.forEach (cls) ->
                 els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
                 return # prevent useless return from forEach
 
-        if m.attrs
+        if e.attrs
             # Filter by attribute
-            m.attrs.forEach ({name, op, val}) ->
+            e.attrs.forEach ({name, op, val}) ->
                 
-                name = _attrMap[name] or name
-
                 if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
                     val = val.substr(1, val.length - 2)
 
                 els = els.filter (el) ->
-                    attr = el[name] ? el.getAttribute(name)
+                    attr = if _attrMap[name] then el[_attrMap[name]] else el.getAttribute(name)
                     value = attr + ""
             
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
@@ -190,9 +209,9 @@
 
                 return # prevent useless return from forEach
             
-        if m.pseudos
+        if e.pseudos
             # Filter by pseudo
-            m.pseudos.forEach ({name, val}) ->
+            e.pseudos.forEach ({name, val}) ->
 
                 pseudo = sel.pseudos[name]
                 if not pseudo
@@ -290,123 +309,119 @@
     ### parser.coffee ###
 
     attrPattern = ///
-        (?:
-            \[
-                \s* ([-\w]+) \s*
-                (?: ([~|^$*!]?=) \s* ( [-\w]+ | ['"][^'"]*['"] ) \s* )?
-            \]
-        )
+        \[
+            \s* ([-\w]+) \s*
+            (?: ([~|^$*!]?=) \s* ( [-\w]+ | ['"][^'"]*['"] ) \s* )?
+        \]
     ///g
 
     pseudoPattern = ///
-        (?:
-            ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
-        )
+        ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
     ///g
-
-    selectorPattern = ///
-        ^ \s*
-        (?:
-            # tag
-            (?: (\* | \w+) )?
-
-            # id
-            (?: \# ([-\w]+) )?
-
-            # classes
-            (?: \. ([-\.\w]+) )?
-
-            # attributes
-            ( #{attrPattern.source}* )
     
-            # pseudo
-            ( #{pseudoPattern.source}* )
+    combinatorPattern = /// ^ \s* ([,+~]) ///
+    
+    selectorPattern = /// ^ 
+        
+        (?: \s* (>) )? # child selector
+        
+        \s*
+        
+        # tag
+        (?: (\* | \w+) )?
 
-        ) ( \s*, | [+~>\s]+ )? # combinator
+        # id
+        (?: \# ([-\w]+) )?
+
+        # classes
+        (?: \. ([-\.\w]+) )?
+
+        # attrs
+        ( (?: #{attrPattern.source} )* )
+
+        # pseudos
+        ( (?: #{pseudoPattern.source} )* )
+
     ///
 
     selectorGroups = {
-        tag: 1, id: 2, classes: 3,
-        attrsAll: 4, pseudosAll: 8,
-        combinator: 11
+        type: 1, tag: 2, id: 3, classes: 4,
+        attrsAll: 5, pseudosAll: 9
     }
 
-    parseSimple = (type, state) ->
-        rest = state.selector.substr(state.selector.length - state.left)
-        if not (m = selectorPattern.exec(rest))
-             throw new Error("Parse error: #{rest}")
-
-        state.left -= m[0].length
-    
-        for name, group of selectorGroups
-            m[name] = m[group]
-
-        m.type = type
-        m.tag = m.tag.toLowerCase() if m.tag
-        m.classes = m.classes.toLowerCase().split('.') if m.classes
-
-        if m.attrsAll
-            m.attrs = []
-            m.attrsAll.replace attrPattern, (all, name, op, val) ->
-                m.attrs.push({name: name, op: op, val: val})
-                return ""
-        
-        if m.pseudosAll
-            m.pseudos = []
-            m.pseudosAll.replace pseudoPattern, (all, name, val) ->
-                if name == 'not'
-                    m.not = parse(val)
-                else
-                    m.pseudos.push({name: name, val: val})
-                
-                return ""
-        
-        # The combinator determines the next type being parsed
-        m.combinator = if not state.left then '$' else (m.combinator.trim() or ' ')
-
-        switch m.combinator
-            # descending selectors
-            when ' ', '>'
-                m.child = parseSimple(m.combinator, state)
-    
-            # combining selectors
-            when '+', '~', ','
-                state.rewind = m.combinator
-        
-            # end of input
-            when '$'
-                state.rewind = null
-        
-        return m
-
     parse = (selector) ->
-        state = {
-            selector: selector,
-            left: selector.length,
-        }
+        result = last = parseSimple(selector)
+        
+        if last.compound
+            last.children = []
+        
+        while last[0].length < selector.length
+            selector = selector.substr(last[0].length)
+            e = parseSimple(selector)
+            
+            if e.compound
+                e.children = [result]
+                result = e
+                
+            else if last.compound
+                last.children.push(e)
+                
+            else
+                last.child = e
+                
+            last = e
 
-        m = parseSimple(' ', state)
-        while state.rewind
-            m = {
-                type: state.rewind,
-                children: [m, parseSimple(' ', state)],
-            }
+        return result
 
-        return m
+    parseSimple = (selector) ->
+        if e = combinatorPattern.exec(selector)
+            e.compound = true
+            e.type = e[1]
+            
+        else if e = selectorPattern.exec(selector)
+            e.simple = true
 
+            for name, group of selectorGroups
+                e[name] = e[group]
+
+            e.type or= ' '
+        
+            e.tag = e.tag.toLowerCase() if e.tag
+            e.classes = e.classes.toLowerCase().split('.') if e.classes
+
+            if e.attrsAll
+                e.attrs = []
+                e.attrsAll.replace attrPattern, (all, name, op, val) ->
+                    e.attrs.push({name: name, op: op, val: val})
+                    return ""
+
+            if e.pseudosAll
+                e.pseudos = []
+                e.pseudosAll.replace pseudoPattern, (all, name, val) ->
+                    if name == 'not'
+                        e.not = parse(val)
+                    else
+                        e.pseudos.push({name: name, val: val})
+        
+                    return ""
+            
+        else
+            throw new Error("Parse error at: #{selector}")
+
+        return e
     ### eval.coffee ###
 
-    evaluate = (m, roots) ->
+    evaluate = (e, roots) ->
         els = []
 
         if roots.length
-            switch m.type
+            switch e.type
                 when ' ', '>'
                     # We only need to search from the outermost roots
                     outerRoots = filterDescendents(roots)
-                    els = find(outerRoots, m)
+                    els = find(e, outerRoots)
 
-                    if m.type == '>'
+                    if e.type == '>'
                         roots.forEach (el) ->
                             el._sel_mark = true
                             return
@@ -417,21 +432,26 @@
                             el._sel_mark = false
                             return
                             
-                    if m.not
-                        els = sel.difference(els, find(outerRoots, m.not))
+                    if e.not
+                        els = sel.difference(els, find(e.not, outerRoots))
             
-                    if m.child
-                        els = evaluate(m.child, els)
+                    if e.child
+                        els = evaluate(e.child, els)
 
                 when '+', '~', ','
-                    sibs = evaluate(m.children[0], roots)
-                    els = evaluate(m.children[1], roots)
+                    if e.children.length == 2
+                        sibs = evaluate(e.children[0], roots)
+                        els = evaluate(e.children[1], roots)
+                    else
+                        sibs = roots
+                        roots = parents(roots)
+                        els = evaluate(e.children[0], roots)
             
-                    if m.type == ','
+                    if e.type == ','
                         # sibs here is just the result of the first selector
                         els = sel.union(sibs, els)
                     
-                    else if m.type == '+'
+                    else if e.type == '+'
                         sibs.forEach (el) ->
                             if (el = nextElementSibling(el))
                                 el._sel_mark = true 
@@ -446,7 +466,7 @@
                                 
                             return # prevent useless return from forEach
                     
-                    else if m.type == '~'
+                    else if e.type == '~'
                         sibs.forEach (el) ->
                             while (el = nextElementSibling(el)) and not el._sel_mark
                                 el._sel_mark = true
@@ -488,7 +508,7 @@
 
     select =
         # See whether we should try qSA first
-        if document.querySelector and document.querySelectorAll
+        if false && document.querySelector and document.querySelectorAll
             (selector, roots) ->
                 try roots.map((root) -> root.querySelectorAll(selector)).reduce(extend, [])
                 catch e then evaluate(parse(selector), roots)
@@ -536,5 +556,6 @@
         else
             return select(selector, roots)
 
-    sel.matching = (els, selector) -> filter(els, parse(selector)))(exports ? (@['sel'] = {}))
+    sel.matching = (els, selector) -> filter(parse(selector), els)
+)(exports ? (@['sel'] = {}))
 

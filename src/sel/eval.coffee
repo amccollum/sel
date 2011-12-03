@@ -1,16 +1,16 @@
     ### eval.coffee ###
 
-    evaluate = (m, roots) ->
+    evaluate = (e, roots) ->
         els = []
 
         if roots.length
-            switch m.type
+            switch e.type
                 when ' ', '>'
                     # We only need to search from the outermost roots
                     outerRoots = filterDescendents(roots)
-                    els = find(outerRoots, m)
+                    els = find(e, outerRoots)
 
-                    if m.type == '>'
+                    if e.type == '>'
                         roots.forEach (el) ->
                             el._sel_mark = true
                             return
@@ -21,21 +21,26 @@
                             el._sel_mark = false
                             return
                             
-                    if m.not
-                        els = sel.difference(els, find(outerRoots, m.not))
+                    if e.not
+                        els = sel.difference(els, find(e.not, outerRoots))
             
-                    if m.child
-                        els = evaluate(m.child, els)
+                    if e.child
+                        els = evaluate(e.child, els)
 
                 when '+', '~', ','
-                    sibs = evaluate(m.children[0], roots)
-                    els = evaluate(m.children[1], roots)
+                    if e.children.length == 2
+                        sibs = evaluate(e.children[0], roots)
+                        els = evaluate(e.children[1], roots)
+                    else
+                        sibs = roots
+                        roots = parents(roots)
+                        els = evaluate(e.children[0], roots)
             
-                    if m.type == ','
+                    if e.type == ','
                         # sibs here is just the result of the first selector
                         els = sel.union(sibs, els)
                     
-                    else if m.type == '+'
+                    else if e.type == '+'
                         sibs.forEach (el) ->
                             if (el = nextElementSibling(el))
                                 el._sel_mark = true 
@@ -50,7 +55,7 @@
                                 
                             return # prevent useless return from forEach
                     
-                    else if m.type == '~'
+                    else if e.type == '~'
                         sibs.forEach (el) ->
                             while (el = nextElementSibling(el)) and not el._sel_mark
                                 el._sel_mark = true

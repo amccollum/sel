@@ -23,7 +23,7 @@
 
     select =
         # See whether we should try qSA first
-        if document.querySelector and document.querySelectorAll
+        if false && document.querySelector and document.querySelectorAll
             (selector, roots) ->
                 try roots.map((root) -> root.querySelectorAll(selector)).reduce(extend, [])
                 catch e then evaluate(parse(selector), roots)
@@ -71,4 +71,4 @@
         else
             return select(selector, roots)
 
-    sel.matching = (els, selector) -> filter(els, parse(selector))
+    sel.matching = (els, selector) -> filter(parse(selector), els)

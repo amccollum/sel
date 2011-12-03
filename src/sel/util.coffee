@@ -7,7 +7,7 @@
             a.push(x)
     
         return a
-                    
+        
     eachElement = (el, first, next, fn) ->
         el = el[first]
         while (el)
@@ -51,7 +51,7 @@
                 else if a.compareDocumentPosition(b) & 4 then -1
                 else 1
                 
-        else if html.sourceIndex
+        else if html.sourceIndex                                                    
             (a, b) ->
                 if a == b then 0
                 else if a.sourceIndex < b.sourceIndex then -1
@@ -59,6 +59,19 @@
 
     # Return the topmost ancestors of the element array
     filterDescendents = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
+
+    # Return all the parent nodes of the element array
+    parents = (els) ->
+        r = []
+        
+        els.forEach (el) ->
+            parent = el.parentNode
+            if parent and parent != r[r.length-1]
+                r.push(parent)
+                
+            return
+            
+        return r
 
     # Helper function for combining sorted element arrays in various ways
     combine = (a, b, aRest, bRest, map) ->
