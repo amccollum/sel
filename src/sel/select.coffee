@@ -39,7 +39,7 @@
         
         else if typeof roots == 'object' and isFinite(roots.length)
             roots.sort(elCmp) if roots.sort
-            return filterDescendents(roots)
+            return filterDescendants(roots)
         
         else
             return [roots]

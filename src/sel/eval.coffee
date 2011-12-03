@@ -7,7 +7,7 @@
             switch e.type
                 when ' ', '>'
                     # We only need to search from the outermost roots
-                    outerRoots = filterDescendents(roots)
+                    outerRoots = filterDescendants(roots)
                     els = find(e, outerRoots)
 
                     if e.type == '>'
@@ -33,7 +33,7 @@
                         els = evaluate(e.children[1], roots)
                     else
                         sibs = roots
-                        roots = parents(roots)
+                        roots = outerDescendants(roots)
                         els = evaluate(e.children[0], roots)
             
                     if e.type == ','

@@ -58,13 +58,13 @@
                 else 1
 
     # Return the topmost ancestors of the element array
-    filterDescendents = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
+    filterDescendants = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
 
-    # Return all the parent nodes of the element array
-    parents = (els) ->
+    # Return descendants one level above the given elements
+    outerDescendants = (els) ->
         r = []
         
-        els.forEach (el) ->
+        filterDescendants(els).forEach (el) ->
             parent = el.parentNode
             if parent and parent != r[r.length-1]
                 r.push(parent)
