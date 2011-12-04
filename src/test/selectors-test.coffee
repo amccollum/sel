@@ -69,7 +69,12 @@ testTopic = (lib, success) ->
     el.style.display = 'none'
     el.style.visibility = 'hidden'
     
-    onload = -> success(lib, el.contentDocument)
+    onload = ->
+        doc = el.contentWindow or el.contentDocument
+        if (doc.document) doc = doc.document
+        success(lib, doc)
+        return
+        
     if window.addEventListener
         el.addEventListener 'load', onload
     else

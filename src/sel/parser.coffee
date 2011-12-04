@@ -3,7 +3,7 @@
     attrPattern = ///
         \[
             \s* ([-\w]+) \s*
-            (?: ([~|^$*!]?=) \s* ( [-\w]+ | ['"][^'"]*['"] ) \s* )?
+            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] ) \s* )?
         \]
     ///g
 
@@ -38,7 +38,7 @@
 
     selectorGroups = {
         type: 1, tag: 2, id: 3, classes: 4,
-        attrsAll: 5, pseudosAll: 9
+        attrsAll: 5, pseudosAll: 10
     }
 
     parse = (selector) ->
@@ -83,8 +83,8 @@
 
             if e.attrsAll
                 e.attrs = []
-                e.attrsAll.replace attrPattern, (all, name, op, val) ->
-                    e.attrs.push({name: name, op: op, val: val})
+                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
+                    e.attrs.push({name: name, op: op, val: val or quotedVal})
                     return ""
 
             if e.pseudosAll

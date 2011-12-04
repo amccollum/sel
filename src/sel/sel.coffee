@@ -110,9 +110,18 @@
 
     # Attributes that we get directly off the node
     _attrMap = {
-        'tag': 'tagName',
-        'class': 'className',
+        'tag': (el) -> el.tagName
+        'class': (el) -> el.className
     }
+    
+    # Fix buggy getAttribute for urls in IE
+    do ->
+        p = document.createElement('p')
+        p.innerHTML = '<a href="#"></a>'
+        
+        if p.firstChild.getAttribute('href') != '#'
+            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
+            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
 
     # Map of all the positional pseudos and whether or not they are reversed
     _positionalPseudos = {
@@ -188,11 +197,8 @@
             # Filter by attribute
             e.attrs.forEach ({name, op, val}) ->
                 
-                if val and val[0] in ['"', '\''] and val[0] == val[val.length-1]
-                    val = val.substr(1, val.length - 2)
-
                 els = els.filter (el) ->
-                    attr = if _attrMap[name] then el[_attrMap[name]] else el.getAttribute(name)
+                    attr = if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
                     value = attr + ""
             
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
@@ -203,7 +209,7 @@
                         else if op == '^=' then value.indexOf(val) == 0
                         else if op == '$=' then value.substr(value.length - val.length) == val
                         else if op == '~=' then " #{value} ".indexOf(" #{val} ") >= 0
-                        else if op == '|=' then value == val or (value.indexOf(val) == 0 and value[val.length] == '-')
+                        else if op == '|=' then value == val or (value.indexOf(val) == 0 and value.charAt(val.length) == '-')
                         else false # should never get here...
                     )
 
@@ -311,7 +317,7 @@
     attrPattern = ///
         \[
             \s* ([-\w]+) \s*
-            (?: ([~|^$*!]?=) \s* ( [-\w]+ | ['"][^'"]*['"] ) \s* )?
+            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] ) \s* )?
         \]
     ///g
 
@@ -346,7 +352,7 @@
 
     selectorGroups = {
         type: 1, tag: 2, id: 3, classes: 4,
-        attrsAll: 5, pseudosAll: 9
+        attrsAll: 5, pseudosAll: 10
     }
 
     parse = (selector) ->
@@ -391,8 +397,8 @@
 
             if e.attrsAll
                 e.attrs = []
-                e.attrsAll.replace attrPattern, (all, name, op, val) ->
-                    e.attrs.push({name: name, op: op, val: val})
+                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
+                    e.attrs.push({name: name, op: op, val: val or quotedVal})
                     return ""
 
             if e.pseudosAll
