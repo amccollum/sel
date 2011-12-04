@@ -32,6 +32,7 @@ task 'test', 'Build the test suite', ->
 
         'cd test',
         'ln -sfn ../node_modules node_modules',
+        'rm -rf node_modules/sel',
         'node_modules/.bin/ender build ender-vows ..',
         'cd ..',
     ]

@@ -71,7 +71,7 @@ testTopic = (lib, success) ->
     
     onload = ->
         doc = el.contentWindow or el.contentDocument
-        if (doc.document) doc = doc.document
+        if (doc.document) then doc = doc.document
         success(lib, doc)
         return
         
