@@ -21,12 +21,32 @@
         eachElement parent, 'firstChild', 'nextSibling', (el) -> els.push(el)
         return els
 
+    qSA = (selector, root) ->
+        if root.nodeType == 1
+            id = root.id
+            if not id
+                root.id = '_sel_root'
+                
+            selector = "##{root.id} #{selector}"
+                
+        els = root.querySelectorAll(selector)
+
+        if root.nodeType == 1 and not id
+            root.removeAttribute('id')
+
+        return els
+
     select =
         # See whether we should try qSA first
-        if document.querySelector and document.querySelectorAll
+        if document.querySelectorAll
             (selector, roots) ->
-                try roots.map((root) -> root.querySelectorAll(selector)).reduce(extend, [])
-                catch e then evaluate(parse(selector), roots)
+                if not combinatorPattern.exec(selector)
+                    try
+                        return roots.map((root) -> qSA(selector, root)).reduce(extend, [])
+                    catch e
+
+                return evaluate(parse(selector), roots)
+            
         else
             (selector, roots) -> evaluate(parse(selector), roots)
 

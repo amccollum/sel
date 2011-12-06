@@ -15,7 +15,7 @@
             el = el[next]
             
         return
-
+        
     nextElementSibling =
         if html.nextElementSibling
             (el) -> el.nextElementSibling
@@ -66,7 +66,7 @@
         
         filterDescendants(els).forEach (el) ->
             parent = el.parentNode
-            if parent and parent != r[r.length-1]
+            if parent and r[r.length-1] != parent
                 r.push(parent)
                 
             return

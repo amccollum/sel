@@ -6,15 +6,6 @@
         'class': (el) -> el.className
     }
     
-    # Fix buggy getAttribute for urls in IE
-    do ->
-        p = document.createElement('p')
-        p.innerHTML = '<a href="#"></a>'
-        
-        if p.firstChild.getAttribute('href') != '#'
-            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
-            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
-
     # Map of all the positional pseudos and whether or not they are reversed
     _positionalPseudos = {
         'nth-child': false
@@ -38,13 +29,19 @@
             els = []
             roots.forEach (root) ->
                 el = (root.ownerDocument or root).getElementById(e.id)
-                els.push(el) if el and contains(root, el)
+                els.push(el) if el and el.id == e.id and contains(root, el)
                 return # prevent useless return from forEach
             
             # Don't need to filter on id
             e.id = null
         
-        else if e.classes and html.getElementsByClassName
+        else if e.name
+            # Find by name
+            els = roots.map((root) ->
+                (root.ownerDocument or root).getElementsByName(e.name).filter((el) -> contains(root, el))
+            ).reduce(extend, [])
+        
+        else if e.classes and find.byClass
             # Find by class
             els = roots.map((root) ->
                 e.classes.map((cls) ->
@@ -60,6 +57,9 @@
             els = roots.map((root) ->
                 root.getElementsByTagName(e.tag or '*')
             ).reduce(extend, [])
+            
+            if find.filterComments and (not e.tag or e.tag == '*')
+                els = els.filter((el) -> el.nodeType == 1)
 
             # Don't need to filter on tag
             e.tag = null
@@ -68,7 +68,6 @@
             return filter(e, els)
         else
             return []
-
 
     filter = (e, els) ->
         if e.id
@@ -150,3 +149,33 @@
                 return # prevent useless return from forEach
             
         return els
+
+    # Feature detection
+    do ->
+        div = document.createElement('div')
+
+        # Check whether getting url attributes returns the proper value
+        div.innerHTML = '<a href="#"></a>'
+        if div.firstChild.getAttribute('href') != '#'
+            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
+            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
+            
+        # Check if we can select on second class name
+        div.innerHTML = '<div class="a b"></div><div class="a"></div>'
+        if div.getElementsByClassName and div.getElementsByClassName('b').length
+            # Check if we can detect changes
+            div.lastChild.className = 'b'
+            if div.getElementsByClassName('b').length == 2
+                find.byClass = true
+                
+        # Check if getElementsByTagName returns comments
+        div.innerHTML = '<!-- -->'
+        if div.getElementsByTagName('*').length > 0
+            find.filterComments = true
+        
+        # Prevent IE from leaking memory
+        div = null
+        
+        return # prevent useless return from do
+    
+    

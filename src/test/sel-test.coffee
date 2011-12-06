@@ -27,7 +27,7 @@ detached = '''
     </div>
 '''
 
-vows.add 'Slickspeed Selectors',
+vows.add 'Sel tests',
     'with detached elements,': 
         topic: () -> sel.sel(detached)
             

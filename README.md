@@ -1,8 +1,10 @@
 Sel - Sizzle, but smaller (and faster!)
 ===
-Sel is a tiny selector engine that has all of the power of Sizzle in about half the code size.
+Sel is a CSS selector engine, like Sizzle, which forms the core of jQuery.
 
 Sel uses `querySelectorAll` when it's available, but will fallback on the custom engine when qSA fails.
+
+Sel is written in CoffeeScript with an emphasis on making the code clear and easy to understand.
 
 Support
 -------
@@ -82,7 +84,6 @@ Sel (with the [es5-basic](https://github.com/amccollum/es5-basic) module) suppor
 
 Tests
 -----
-
 CoffeeScript and NPM are required to build the test suite. Since the tests employ iframes, they cannot be run directly from disk.
 
 Acknowledments

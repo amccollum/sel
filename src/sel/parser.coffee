@@ -42,12 +42,12 @@
     }
 
     parse = (selector) ->
-        result = last = parseSimple(selector)
+        result = last = e = parseSimple(selector)
         
-        if last.compound
-            last.children = []
+        if e.compound
+            e.children = []
         
-        while last[0].length < selector.length
+        while e[0].length < selector.length
             selector = selector.substr(last[0].length)
             e = parseSimple(selector)
             
@@ -84,12 +84,34 @@
             if e.attrsAll
                 e.attrs = []
                 e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
+                    name = name.toLowerCase()
+                    
+                    if op == '='
+                        # Special cases...
+                        if name == 'id' and not e.id
+                            e.id = val
+                            return ""
+                            
+                        else if name == 'name'
+                            e.name = val
+                            return ""
+                        
+                        else if name == 'class'
+                            if e.classes
+                                e.classes.append(val)
+                            else
+                                e.classes = [val]
+
+                            return ""
+                    
                     e.attrs.push({name: name, op: op, val: val or quotedVal})
                     return ""
 
             if e.pseudosAll
                 e.pseudos = []
                 e.pseudosAll.replace pseudoPattern, (all, name, val) ->
+                    name = name.toLowerCase()
+
                     if name == 'not'
                         e.not = parse(val)
                     else

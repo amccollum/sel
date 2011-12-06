@@ -17,7 +17,7 @@
             el = el[next]
             
         return
-
+        
     nextElementSibling =
         if html.nextElementSibling
             (el) -> el.nextElementSibling
@@ -68,7 +68,7 @@
         
         filterDescendants(els).forEach (el) ->
             parent = el.parentNode
-            if parent and parent != r[r.length-1]
+            if parent and r[r.length-1] != parent
                 r.push(parent)
                 
             return
@@ -114,15 +114,6 @@
         'class': (el) -> el.className
     }
     
-    # Fix buggy getAttribute for urls in IE
-    do ->
-        p = document.createElement('p')
-        p.innerHTML = '<a href="#"></a>'
-        
-        if p.firstChild.getAttribute('href') != '#'
-            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
-            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
-
     # Map of all the positional pseudos and whether or not they are reversed
     _positionalPseudos = {
         'nth-child': false
@@ -146,13 +137,19 @@
             els = []
             roots.forEach (root) ->
                 el = (root.ownerDocument or root).getElementById(e.id)
-                els.push(el) if el and contains(root, el)
+                els.push(el) if el and el.id == e.id and contains(root, el)
                 return # prevent useless return from forEach
             
             # Don't need to filter on id
             e.id = null
         
-        else if e.classes and html.getElementsByClassName
+        else if e.name
+            # Find by name
+            els = roots.map((root) ->
+                (root.ownerDocument or root).getElementsByName(e.name).filter((el) -> contains(root, el))
+            ).reduce(extend, [])
+        
+        else if e.classes and find.byClass
             # Find by class
             els = roots.map((root) ->
                 e.classes.map((cls) ->
@@ -168,6 +165,9 @@
             els = roots.map((root) ->
                 root.getElementsByTagName(e.tag or '*')
             ).reduce(extend, [])
+            
+            if find.filterComments and (not e.tag or e.tag == '*')
+                els = els.filter((el) -> el.nodeType == 1)
 
             # Don't need to filter on tag
             e.tag = null
@@ -176,7 +176,6 @@
             return filter(e, els)
         else
             return []
-
 
     filter = (e, els) ->
         if e.id
@@ -258,6 +257,36 @@
                 return # prevent useless return from forEach
             
         return els
+
+    # Feature detection
+    do ->
+        div = document.createElement('div')
+
+        # Check whether getting url attributes returns the proper value
+        div.innerHTML = '<a href="#"></a>'
+        if div.firstChild.getAttribute('href') != '#'
+            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
+            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
+            
+        # Check if we can select on second class name
+        div.innerHTML = '<div class="a b"></div><div class="a"></div>'
+        if div.getElementsByClassName and div.getElementsByClassName('b').length
+            # Check if we can detect changes
+            div.lastChild.className = 'b'
+            if div.getElementsByClassName('b').length == 2
+                find.byClass = true
+                
+        # Check if getElementsByTagName returns comments
+        div.innerHTML = '<!-- -->'
+        if div.getElementsByTagName('*').length > 0
+            find.filterComments = true
+        
+        # Prevent IE from leaking memory
+        div = null
+        
+        return # prevent useless return from do
+    
+    
     ### pseudos.coffee ###
 
     nthPattern = /\s*((?:\+|\-)?(\d*))n\s*((?:\+|\-)\s*\d+)?\s*/;
@@ -356,12 +385,12 @@
     }
 
     parse = (selector) ->
-        result = last = parseSimple(selector)
+        result = last = e = parseSimple(selector)
         
-        if last.compound
-            last.children = []
+        if e.compound
+            e.children = []
         
-        while last[0].length < selector.length
+        while e[0].length < selector.length
             selector = selector.substr(last[0].length)
             e = parseSimple(selector)
             
@@ -398,12 +427,34 @@
             if e.attrsAll
                 e.attrs = []
                 e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
+                    name = name.toLowerCase()
+                    
+                    if op == '='
+                        # Special cases...
+                        if name == 'id' and not e.id
+                            e.id = val
+                            return ""
+                            
+                        else if name == 'name'
+                            e.name = val
+                            return ""
+                        
+                        else if name == 'class'
+                            if e.classes
+                                e.classes.append(val)
+                            else
+                                e.classes = [val]
+
+                            return ""
+                    
                     e.attrs.push({name: name, op: op, val: val or quotedVal})
                     return ""
 
             if e.pseudosAll
                 e.pseudos = []
                 e.pseudosAll.replace pseudoPattern, (all, name, val) ->
+                    name = name.toLowerCase()
+
                     if name == 'not'
                         e.not = parse(val)
                     else
@@ -512,12 +563,32 @@
         eachElement parent, 'firstChild', 'nextSibling', (el) -> els.push(el)
         return els
 
+    qSA = (selector, root) ->
+        if root.nodeType == 1
+            id = root.id
+            if not id
+                root.id = '_sel_root'
+                
+            selector = "##{root.id} #{selector}"
+                
+        els = root.querySelectorAll(selector)
+
+        if root.nodeType == 1 and not id
+            root.removeAttribute('id')
+
+        return els
+
     select =
         # See whether we should try qSA first
-        if document.querySelector and document.querySelectorAll
+        if document.querySelectorAll
             (selector, roots) ->
-                try roots.map((root) -> root.querySelectorAll(selector)).reduce(extend, [])
-                catch e then evaluate(parse(selector), roots)
+                if not combinatorPattern.exec(selector)
+                    try
+                        return roots.map((root) -> qSA(selector, root)).reduce(extend, [])
+                    catch e
+
+                return evaluate(parse(selector), roots)
+            
         else
             (selector, roots) -> evaluate(parse(selector), roots)
 
