@@ -42,6 +42,9 @@
     }
 
     parse = (selector) ->
+        if selector of parse.cache
+            return parse.cache[selector]
+            
         result = last = e = parseSimple(selector)
         
         if e.compound
@@ -63,8 +66,10 @@
                 
             last = e
 
-        return result
+        return (parse.cache[selector] = result)
 
+    parse.cache = {}
+    
     parseSimple = (selector) ->
         if e = combinatorPattern.exec(selector)
             e.compound = true
@@ -77,14 +82,14 @@
                 e[name] = e[group]
 
             e.type or= ' '
-        
-            e.tag = e.tag.toLowerCase() if e.tag
+            e.tag and= e.tag.toLowerCase()
             e.classes = e.classes.toLowerCase().split('.') if e.classes
 
             if e.attrsAll
                 e.attrs = []
                 e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
                     name = name.toLowerCase()
+                    val or= quotedVal
                     
                     if op == '='
                         # Special cases...
@@ -92,10 +97,6 @@
                             e.id = val
                             return ""
                             
-                        else if name == 'name'
-                            e.name = val
-                            return ""
-                        
                         else if name == 'class'
                             if e.classes
                                 e.classes.append(val)
@@ -104,7 +105,7 @@
 
                             return ""
                     
-                    e.attrs.push({name: name, op: op, val: val or quotedVal})
+                    e.attrs.push({name: name, op: op, val: val})
                     return ""
 
             if e.pseudosAll
