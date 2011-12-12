@@ -28,19 +28,16 @@
             # Find by id
             els = []
             roots.forEach (root) ->
-                el = (root.ownerDocument or root).getElementById(e.id)
-                els.push(el) if el and el.id == e.id and contains(root, el)
+                if root.getElementById
+                    el = root.getElementById(e.id)
+                    els.push(el) if el
+                    
+                else
+                    # IE <= 8 doesn't support Element.getElementById, so make filter() do the work
+                    els = extend(els, takeElements(extend([], root.getElementsByTagName(e.tag or '*'))))
+                    
                 return # prevent useless return from forEach
             
-            # Don't need to filter on id
-            e.id = null
-        
-        else if e.name
-            # Find by name
-            els = roots.map((root) ->
-                (root.ownerDocument or root).getElementsByName(e.name).filter((el) -> contains(root, el))
-            ).reduce(extend, [])
-        
         else if e.classes and find.byClass
             # Find by class
             els = roots.map((root) ->
@@ -50,7 +47,7 @@
             ).reduce(extend, [])
 
             # Don't need to filter on class
-            e.classes = null
+            e.ignoreClasses = true
         
         else
             # Find by tag
@@ -59,26 +56,30 @@
             ).reduce(extend, [])
             
             if find.filterComments and (not e.tag or e.tag == '*')
-                els = els.filter((el) -> el.nodeType == 1)
-
+                els = takeElements(els)
+            
             # Don't need to filter on tag
-            e.tag = null
+            e.ignoreTag = true
 
         if els and els.length
-            return filter(e, els)
+            els = filter(e, els)
         else
-            return []
+            els = []
+            
+        e.ignoreTag = undefined
+        e.ingoreClasses = undefined
+        return els
 
     filter = (e, els) ->
         if e.id
             # Filter by id
             els = els.filter((el) -> el.id == e.id)
             
-        if e.tag and e.tag != '*'
+        if e.tag and e.tag != '*' and not e.ignoreTag
             # Filter by tag
             els = els.filter((el) -> el.nodeName.toLowerCase() == e.tag)
         
-        if e.classes
+        if e.classes and not e.ignoreClasses
             # Filter by class
             e.classes.forEach (cls) ->
                 els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
@@ -169,7 +170,8 @@
                 find.byClass = true
                 
         # Check if getElementsByTagName returns comments
-        div.innerHTML = '<!-- -->'
+        div.innerHTML = ''
+        div.appendChild(document.createComment(''))
         if div.getElementsByTagName('*').length > 0
             find.filterComments = true
         

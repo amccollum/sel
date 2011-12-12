@@ -38,17 +38,17 @@
 
     select =
         # See whether we should try qSA first
-        if document.querySelectorAll
-            (selector, roots) ->
-                if not combinatorPattern.exec(selector)
+        if html.querySelectorAll
+            (selector, roots, matchRoots) ->
+                if not matchRoots and not combinatorPattern.exec(selector)
                     try
                         return roots.map((root) -> qSA(selector, root)).reduce(extend, [])
                     catch e
 
-                return evaluate(parse(selector), roots)
+                return evaluate(parse(selector), roots, matchRoots)
             
         else
-            (selector, roots) -> evaluate(parse(selector), roots)
+            (selector, roots, matchRoots) -> evaluate(parse(selector), roots, matchRoots)
 
     normalizeRoots = (roots) ->
         if not roots
@@ -58,13 +58,18 @@
             return select(roots, [document])
         
         else if typeof roots == 'object' and isFinite(roots.length)
-            roots.sort(elCmp) if roots.sort
-            return filterDescendants(roots)
+            if roots.sort
+                roots.sort(elCmp)
+            else
+                # NodeList
+                roots = extend([], roots)
+                
+            return roots
         
         else
             return [roots]
 
-    sel.sel = (selector, _roots) ->
+    sel.sel = (selector, _roots, matchRoots) ->
         roots = normalizeRoots(_roots)
 
         if not selector
@@ -89,6 +94,13 @@
                 return []
                 
         else
-            return select(selector, roots)
-
-    sel.matching = (els, selector) -> filter(parse(selector), els)
+            return select(selector, roots, matchRoots)
+    
+    sel.matching = (els, selector, roots) ->
+        e = parse(selector)
+        
+        if not e.child and not e.children
+            return filter(e, els)
+        else
+            return sel.intersection(els, sel.sel(selector, roots or findRoots(els), true))
+    

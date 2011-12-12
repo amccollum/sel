@@ -8,6 +8,8 @@
     
         return a
         
+    takeElements = (els) -> els.filter((el) -> el.nodeType == 1)
+
     eachElement = (el, first, next, fn) ->
         el = el[first]
         while (el)
@@ -56,23 +58,35 @@
                 if a == b then 0
                 else if a.sourceIndex < b.sourceIndex then -1
                 else 1
-
-    # Return the topmost ancestors of the element array
+                
+    # Return the outermost elements of the array
     filterDescendants = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
 
     # Return descendants one level above the given elements
-    outerDescendants = (els) ->
+    outerParents = (els) ->
         r = []
-        
-        filterDescendants(els).forEach (el) ->
-            parent = el.parentNode
-            if parent and r[r.length-1] != parent
+        els.forEach (el) ->
+            if (el = el.parentNode) and el not in r
                 r.push(parent)
                 
             return
             
+        return filterDescendants(r)
+        
+    # Return the topmost root elements of the array
+    findRoots = (els) ->
+        r = []
+        els.forEach (el) ->
+            while el.parentNode
+                el = el.parentNode
+            
+            if r[r.length-1] != el
+                r.push(el)
+                
+            return
+        
         return r
-
+        
     # Helper function for combining sorted element arrays in various ways
     combine = (a, b, aRest, bRest, map) ->
         r = []

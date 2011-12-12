@@ -12,10 +12,16 @@ execCmds = (cmds) ->
 task 'build', 'Build the library', ->
     execCmds [
         'cd src/sel',
-        'cat _pre.coffee util.coffee find.coffee pseudos.coffee parser.coffee eval.coffee select.coffee _post.coffee > sel.coffee',
+        'cat _pre.coffee util.coffee parser.coffee find.coffee pseudos.coffee eval.coffee select.coffee _post.coffee > sel.coffee',
         'cd ../..',
         'coffee --compile --bare --output lib src/sel/sel.coffee',
         'coffee --compile --bare --output lib src/extras/ender.coffee',
+    ]
+
+task 'size', 'Print the size of the compressed library', ->
+    execCmds [
+        'cake build',
+        'cat lib/sel.js | uglifyjs | gzip -9f  | wc -c',
     ]
 
 task 'test', 'Build the test suite', ->

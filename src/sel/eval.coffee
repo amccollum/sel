@@ -1,6 +1,6 @@
     ### eval.coffee ###
 
-    evaluate = (e, roots) ->
+    evaluate = (e, roots, matchRoots) ->
         els = []
 
         if roots.length
@@ -18,23 +18,25 @@
                         els = els.filter((el) -> el._sel_mark if (el = el.parentNode))
 
                         roots.forEach (el) ->
-                            el._sel_mark = false
+                            el._sel_mark = undefined
                             return
-                            
+                    
                     if e.not
-                        els = sel.difference(els, find(e.not, outerRoots))
+                        els = sel.difference(els, find(e.not, outerRoots, matchRoots))
+            
+                    if matchRoots
+                        els = sel.union(els, filter(e, takeElements(outerRoots)))
             
                     if e.child
                         els = evaluate(e.child, els)
 
                 when '+', '~', ','
                     if e.children.length == 2
-                        sibs = evaluate(e.children[0], roots)
-                        els = evaluate(e.children[1], roots)
+                        sibs = evaluate(e.children[0], roots, matchRoots)
+                        els = evaluate(e.children[1], roots, matchRoots)
                     else
                         sibs = roots
-                        roots = outerDescendants(roots)
-                        els = evaluate(e.children[0], roots)
+                        els = evaluate(e.children[0], outerParents(roots), matchRoots)
             
                     if e.type == ','
                         # sibs here is just the result of the first selector
@@ -71,4 +73,3 @@
                             return # prevent useless return from forEach
 
         return els
-

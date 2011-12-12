@@ -10,6 +10,8 @@
     
         return a
         
+    takeElements = (els) -> els.filter((el) -> el.nodeType == 1)
+
     eachElement = (el, first, next, fn) ->
         el = el[first]
         while (el)
@@ -58,23 +60,35 @@
                 if a == b then 0
                 else if a.sourceIndex < b.sourceIndex then -1
                 else 1
-
-    # Return the topmost ancestors of the element array
+                
+    # Return the outermost elements of the array
     filterDescendants = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
 
     # Return descendants one level above the given elements
-    outerDescendants = (els) ->
+    outerParents = (els) ->
         r = []
-        
-        filterDescendants(els).forEach (el) ->
-            parent = el.parentNode
-            if parent and r[r.length-1] != parent
+        els.forEach (el) ->
+            if (el = el.parentNode) and el not in r
                 r.push(parent)
                 
             return
             
+        return filterDescendants(r)
+        
+    # Return the topmost root elements of the array
+    findRoots = (els) ->
+        r = []
+        els.forEach (el) ->
+            while el.parentNode
+                el = el.parentNode
+            
+            if r[r.length-1] != el
+                r.push(el)
+                
+            return
+        
         return r
-
+        
     # Helper function for combining sorted element arrays in various ways
     combine = (a, b, aRest, bRest, map) ->
         r = []
@@ -106,6 +120,132 @@
     sel.intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
     sel.difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
 
+    ### parser.coffee ###
+
+    attrPattern = ///
+        \[
+            \s* ([-\w]+) \s*
+            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] ) \s* )?
+        \]
+    ///g
+
+    pseudoPattern = ///
+        ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
+    ///g
+    
+    combinatorPattern = /// ^ \s* ([,+~]) ///
+    
+    selectorPattern = /// ^ 
+        
+        (?: \s* (>) )? # child selector
+        
+        \s*
+        
+        # tag
+        (?: (\* | \w+) )?
+
+        # id
+        (?: \# ([-\w]+) )?
+
+        # classes
+        (?: \. ([-\.\w]+) )?
+
+        # attrs
+        ( (?: #{attrPattern.source} )* )
+
+        # pseudos
+        ( (?: #{pseudoPattern.source} )* )
+
+    ///
+
+    selectorGroups = {
+        type: 1, tag: 2, id: 3, classes: 4,
+        attrsAll: 5, pseudosAll: 10
+    }
+
+    parse = (selector) ->
+        if selector of parse.cache
+            return parse.cache[selector]
+            
+        result = last = e = parseSimple(selector)
+        
+        if e.compound
+            e.children = []
+        
+        while e[0].length < selector.length
+            selector = selector.substr(last[0].length)
+            e = parseSimple(selector)
+            
+            if e.compound
+                e.children = [result]
+                result = e
+                
+            else if last.compound
+                last.children.push(e)
+                
+            else
+                last.child = e
+                
+            last = e
+
+        return (parse.cache[selector] = result)
+
+    parse.cache = {}
+    
+    parseSimple = (selector) ->
+        if e = combinatorPattern.exec(selector)
+            e.compound = true
+            e.type = e[1]
+            
+        else if e = selectorPattern.exec(selector)
+            e.simple = true
+
+            for name, group of selectorGroups
+                e[name] = e[group]
+
+            e.type or= ' '
+            e.tag and= e.tag.toLowerCase()
+            e.classes = e.classes.toLowerCase().split('.') if e.classes
+
+            if e.attrsAll
+                e.attrs = []
+                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
+                    name = name.toLowerCase()
+                    val or= quotedVal
+                    
+                    if op == '='
+                        # Special cases...
+                        if name == 'id' and not e.id
+                            e.id = val
+                            return ""
+                            
+                        else if name == 'class'
+                            if e.classes
+                                e.classes.append(val)
+                            else
+                                e.classes = [val]
+
+                            return ""
+                    
+                    e.attrs.push({name: name, op: op, val: val})
+                    return ""
+
+            if e.pseudosAll
+                e.pseudos = []
+                e.pseudosAll.replace pseudoPattern, (all, name, val) ->
+                    name = name.toLowerCase()
+
+                    if name == 'not'
+                        e.not = parse(val)
+                    else
+                        e.pseudos.push({name: name, val: val})
+        
+                    return ""
+            
+        else
+            throw new Error("Parse error at: #{selector}")
+
+        return e
     ### find.coffee ###
 
     # Attributes that we get directly off the node
@@ -136,19 +276,16 @@
             # Find by id
             els = []
             roots.forEach (root) ->
-                el = (root.ownerDocument or root).getElementById(e.id)
-                els.push(el) if el and el.id == e.id and contains(root, el)
+                if root.getElementById
+                    el = root.getElementById(e.id)
+                    els.push(el) if el
+                    
+                else
+                    # IE <= 8 doesn't support Element.getElementById, so make filter() do the work
+                    els = extend(els, takeElements(extend([], root.getElementsByTagName(e.tag or '*'))))
+                    
                 return # prevent useless return from forEach
             
-            # Don't need to filter on id
-            e.id = null
-        
-        else if e.name
-            # Find by name
-            els = roots.map((root) ->
-                (root.ownerDocument or root).getElementsByName(e.name).filter((el) -> contains(root, el))
-            ).reduce(extend, [])
-        
         else if e.classes and find.byClass
             # Find by class
             els = roots.map((root) ->
@@ -158,7 +295,7 @@
             ).reduce(extend, [])
 
             # Don't need to filter on class
-            e.classes = null
+            e.ignoreClasses = true
         
         else
             # Find by tag
@@ -167,26 +304,30 @@
             ).reduce(extend, [])
             
             if find.filterComments and (not e.tag or e.tag == '*')
-                els = els.filter((el) -> el.nodeType == 1)
-
+                els = takeElements(els)
+            
             # Don't need to filter on tag
-            e.tag = null
+            e.ignoreTag = true
 
         if els and els.length
-            return filter(e, els)
+            els = filter(e, els)
         else
-            return []
+            els = []
+            
+        e.ignoreTag = undefined
+        e.ingoreClasses = undefined
+        return els
 
     filter = (e, els) ->
         if e.id
             # Filter by id
             els = els.filter((el) -> el.id == e.id)
             
-        if e.tag and e.tag != '*'
+        if e.tag and e.tag != '*' and not e.ignoreTag
             # Filter by tag
             els = els.filter((el) -> el.nodeName.toLowerCase() == e.tag)
         
-        if e.classes
+        if e.classes and not e.ignoreClasses
             # Filter by class
             e.classes.forEach (cls) ->
                 els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
@@ -277,7 +418,8 @@
                 find.byClass = true
                 
         # Check if getElementsByTagName returns comments
-        div.innerHTML = '<!-- -->'
+        div.innerHTML = ''
+        div.appendChild(document.createComment(''))
         if div.getElementsByTagName('*').length > 0
             find.filterComments = true
         
@@ -341,134 +483,9 @@
     }
         
 
-    ### parser.coffee ###
-
-    attrPattern = ///
-        \[
-            \s* ([-\w]+) \s*
-            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] ) \s* )?
-        \]
-    ///g
-
-    pseudoPattern = ///
-        ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
-    ///g
-    
-    combinatorPattern = /// ^ \s* ([,+~]) ///
-    
-    selectorPattern = /// ^ 
-        
-        (?: \s* (>) )? # child selector
-        
-        \s*
-        
-        # tag
-        (?: (\* | \w+) )?
-
-        # id
-        (?: \# ([-\w]+) )?
-
-        # classes
-        (?: \. ([-\.\w]+) )?
-
-        # attrs
-        ( (?: #{attrPattern.source} )* )
-
-        # pseudos
-        ( (?: #{pseudoPattern.source} )* )
-
-    ///
-
-    selectorGroups = {
-        type: 1, tag: 2, id: 3, classes: 4,
-        attrsAll: 5, pseudosAll: 10
-    }
-
-    parse = (selector) ->
-        result = last = e = parseSimple(selector)
-        
-        if e.compound
-            e.children = []
-        
-        while e[0].length < selector.length
-            selector = selector.substr(last[0].length)
-            e = parseSimple(selector)
-            
-            if e.compound
-                e.children = [result]
-                result = e
-                
-            else if last.compound
-                last.children.push(e)
-                
-            else
-                last.child = e
-                
-            last = e
-
-        return result
-
-    parseSimple = (selector) ->
-        if e = combinatorPattern.exec(selector)
-            e.compound = true
-            e.type = e[1]
-            
-        else if e = selectorPattern.exec(selector)
-            e.simple = true
-
-            for name, group of selectorGroups
-                e[name] = e[group]
-
-            e.type or= ' '
-        
-            e.tag = e.tag.toLowerCase() if e.tag
-            e.classes = e.classes.toLowerCase().split('.') if e.classes
-
-            if e.attrsAll
-                e.attrs = []
-                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
-                    name = name.toLowerCase()
-                    
-                    if op == '='
-                        # Special cases...
-                        if name == 'id' and not e.id
-                            e.id = val
-                            return ""
-                            
-                        else if name == 'name'
-                            e.name = val
-                            return ""
-                        
-                        else if name == 'class'
-                            if e.classes
-                                e.classes.append(val)
-                            else
-                                e.classes = [val]
-
-                            return ""
-                    
-                    e.attrs.push({name: name, op: op, val: val or quotedVal})
-                    return ""
-
-            if e.pseudosAll
-                e.pseudos = []
-                e.pseudosAll.replace pseudoPattern, (all, name, val) ->
-                    name = name.toLowerCase()
-
-                    if name == 'not'
-                        e.not = parse(val)
-                    else
-                        e.pseudos.push({name: name, val: val})
-        
-                    return ""
-            
-        else
-            throw new Error("Parse error at: #{selector}")
-
-        return e
     ### eval.coffee ###
 
-    evaluate = (e, roots) ->
+    evaluate = (e, roots, matchRoots) ->
         els = []
 
         if roots.length
@@ -488,21 +505,23 @@
                         roots.forEach (el) ->
                             el._sel_mark = false
                             return
-                            
+                    
                     if e.not
-                        els = sel.difference(els, find(e.not, outerRoots))
+                        els = sel.difference(els, find(e.not, outerRoots, matchRoots))
+            
+                    if matchRoots
+                        els = sel.union(els, filter(e, takeElements(outerRoots)))
             
                     if e.child
                         els = evaluate(e.child, els)
 
                 when '+', '~', ','
                     if e.children.length == 2
-                        sibs = evaluate(e.children[0], roots)
-                        els = evaluate(e.children[1], roots)
+                        sibs = evaluate(e.children[0], roots, matchRoots)
+                        els = evaluate(e.children[1], roots, matchRoots)
                     else
                         sibs = roots
-                        roots = outerDescendants(roots)
-                        els = evaluate(e.children[0], roots)
+                        els = evaluate(e.children[0], outerParents(roots), matchRoots)
             
                     if e.type == ','
                         # sibs here is just the result of the first selector
@@ -539,7 +558,6 @@
                             return # prevent useless return from forEach
 
         return els
-
     ### select.coffee ###
 
     parentMap = {
@@ -580,17 +598,17 @@
 
     select =
         # See whether we should try qSA first
-        if document.querySelectorAll
-            (selector, roots) ->
-                if not combinatorPattern.exec(selector)
+        if html.querySelectorAll
+            (selector, roots, matchRoots) ->
+                if not matchRoots and not combinatorPattern.exec(selector)
                     try
                         return roots.map((root) -> qSA(selector, root)).reduce(extend, [])
                     catch e
 
-                return evaluate(parse(selector), roots)
+                return evaluate(parse(selector), roots, matchRoots)
             
         else
-            (selector, roots) -> evaluate(parse(selector), roots)
+            (selector, roots, matchRoots) -> evaluate(parse(selector), roots, matchRoots)
 
     normalizeRoots = (roots) ->
         if not roots
@@ -600,13 +618,18 @@
             return select(roots, [document])
         
         else if typeof roots == 'object' and isFinite(roots.length)
-            roots.sort(elCmp) if roots.sort
-            return filterDescendants(roots)
+            if roots.sort
+                roots.sort(elCmp)
+            else
+                # NodeList
+                roots = extend([], roots)
+                
+            return roots
         
         else
             return [roots]
 
-    sel.sel = (selector, _roots) ->
+    sel.sel = (selector, _roots, matchRoots) ->
         roots = normalizeRoots(_roots)
 
         if not selector
@@ -631,8 +654,14 @@
                 return []
                 
         else
-            return select(selector, roots)
-
-    sel.matching = (els, selector) -> filter(parse(selector), els)
-)(exports ? (@['sel'] = {}))
+            return select(selector, roots, matchRoots)
+    
+    sel.matching = (els, selector, roots) ->
+        e = parse(selector)
+        
+        if not e.child and not e.children
+            return filter(e, els)
+        else
+            return sel.intersection(els, sel.sel(selector, roots or findRoots(els), true))
+    )(exports ? (@['sel'] = {}))
 
