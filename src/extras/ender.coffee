@@ -9,11 +9,12 @@
         difference: (s, r) -> $(sel.difference(this, sel.sel(s, r)))
         intersection: (s, r) -> $(sel.intersection(this, sel.sel(s, r)))
         matching: (s) -> $(sel.matching(this, s))
-        is: (s, r) -> (sel.intersection(this, sel.sel(s, r)).length > 0)
+        is: (s, r) -> sel.matching(this, s, r).length > 0
     
     # Method synonyms (these are the names jQuery uses)
     methods.and = methods.union
     methods.not = methods.difference
+    methods.matches = methods.matching
 
     $.pseudos = sel.pseudos
     $.ender(methods, true)
