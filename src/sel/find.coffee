@@ -67,7 +67,7 @@
             els = []
             
         e.ignoreTag = undefined
-        e.ingoreClasses = undefined
+        e.ignoreClasses = undefined
         return els
 
     filter = (e, els) ->

@@ -315,7 +315,7 @@
             els = []
             
         e.ignoreTag = undefined
-        e.ingoreClasses = undefined
+        e.ignoreClasses = undefined
         return els
 
     filter = (e, els) ->
@@ -503,7 +503,7 @@
                         els = els.filter((el) -> el._sel_mark if (el = el.parentNode))
 
                         roots.forEach (el) ->
-                            el._sel_mark = false
+                            el._sel_mark = undefined
                             return
                     
                     if e.not
