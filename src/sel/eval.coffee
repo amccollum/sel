@@ -21,14 +21,22 @@
                             el._sel_mark = undefined
                             return
                     
+                    if e.matches
+                        els = sel.intersection(els, find(e.matches, outerRoots, matchRoots))
+                        
                     if e.not
                         els = sel.difference(els, find(e.not, outerRoots, matchRoots))
             
+                    # Special case for sel.matching to allow roots to be matched
                     if matchRoots
                         els = sel.union(els, filter(e, takeElements(outerRoots)))
             
                     if e.child
-                        els = evaluate(e.child, els)
+                        if e.subject
+                            # Need to check each element individually
+                            els = els.filter((el) -> evaluate(e.child, [el]).length)
+                        else
+                            els = evaluate(e.child, els)
 
                 when '+', '~', ','
                     if e.children.length == 2
@@ -47,7 +55,7 @@
                             if (el = nextElementSibling(el))
                                 el._sel_mark = true 
                                 
-                            return # prevent useless return from forEach
+                            return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
@@ -55,14 +63,14 @@
                             if (el = nextElementSibling(el))
                                 el._sel_mark = undefined
                                 
-                            return # prevent useless return from forEach
+                            return
                     
                     else if e.type == '~'
                         sibs.forEach (el) ->
                             while (el = nextElementSibling(el)) and not el._sel_mark
                                 el._sel_mark = true
                                 
-                            return # prevent useless return from forEach
+                            return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
@@ -70,6 +78,6 @@
                             while (el = nextElementSibling(el)) and el._sel_mark
                                 el._sel_mark = undefined
                                 
-                            return # prevent useless return from forEach
+                            return
 
         return els

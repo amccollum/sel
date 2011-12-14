@@ -19,6 +19,10 @@
         
         \s*
         
+        (?: /([-\w]+)/ )? # id ref
+        
+        \s*
+        
         # tag
         (?: (\* | \w+) )?
 
@@ -33,12 +37,15 @@
 
         # pseudos
         ( (?: #{pseudoPattern.source} )* )
+        
+        # subject marker
+        (!)?
 
     ///
 
     selectorGroups = {
-        type: 1, tag: 2, id: 3, classes: 4,
-        attrsAll: 5, pseudosAll: 10
+        type: 1, idref: 2, tag: 3, id: 4, classes: 5,
+        attrsAll: 6, pseudosAll: 11, subject: 14
     }
 
     parse = (selector) ->
@@ -115,6 +122,8 @@
 
                     if name == 'not'
                         e.not = parse(val)
+                    else if name == 'matches' or name == 'any'
+                        e.matches = parse(val)
                     else
                         e.pseudos.push({name: name, val: val})
         

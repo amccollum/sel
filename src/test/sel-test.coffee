@@ -61,4 +61,3 @@ vows.add 'Miscellaneous Tests',
                 '`.even li, .odd li`':
                     topic: (els) -> sel.matching(els, '.even li, .odd li')
                     'should return 3 elements': (result) -> assert.equal result.length, 3
-

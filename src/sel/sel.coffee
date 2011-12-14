@@ -65,15 +65,7 @@
     filterDescendants = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
 
     # Return descendants one level above the given elements
-    outerParents = (els) ->
-        r = []
-        els.forEach (el) ->
-            if (el = el.parentNode) and el not in r
-                r.push(parent)
-                
-            return
-            
-        return filterDescendants(r)
+    outerParents = (els) -> filterDescendents(els.map((el) -> el.parentNode))
         
     # Return the topmost root elements of the array
     findRoots = (els) ->
@@ -141,6 +133,10 @@
         
         \s*
         
+        (?: /([-\w]+)/ )? # id ref
+        
+        \s*
+        
         # tag
         (?: (\* | \w+) )?
 
@@ -155,12 +151,15 @@
 
         # pseudos
         ( (?: #{pseudoPattern.source} )* )
+        
+        # subject marker
+        (!)?
 
     ///
 
     selectorGroups = {
-        type: 1, tag: 2, id: 3, classes: 4,
-        attrsAll: 5, pseudosAll: 10
+        type: 1, idref: 2, tag: 3, id: 4, classes: 5,
+        attrsAll: 6, pseudosAll: 11, subject: 14
     }
 
     parse = (selector) ->
@@ -237,6 +236,8 @@
 
                     if name == 'not'
                         e.not = parse(val)
+                    else if name == 'matches' or name == 'any'
+                        e.matches = parse(val)
                     else
                         e.pseudos.push({name: name, val: val})
         
@@ -249,10 +250,12 @@
     ### find.coffee ###
 
     # Attributes that we get directly off the node
-    _attrMap = {
+    _attributeMap = {
         'tag': (el) -> el.tagName
         'class': (el) -> el.className
     }
+    
+    getAttribute = (el, name) -> if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
     
     # Map of all the positional pseudos and whether or not they are reversed
     _positionalPseudos = {
@@ -272,20 +275,22 @@
     
 
     find = (e, roots) ->
-        if e.id
-            # Find by id
+        if e.id or e.idref
+            # Find by id or idref
             els = []
             roots.forEach (root) ->
+                id = if e.idref then getAttribute(root, e.idref) else e.id
+                
                 if root.getElementById
-                    el = root.getElementById(e.id)
-                    els.push(el) if el
-                    
+                    el = root.getElementById(id)
+                    els.push(el) if el and el.id == id
+                        
                 else
-                    # IE <= 8 doesn't support Element.getElementById, so make filter() do the work
-                    els = extend(els, takeElements(extend([], root.getElementsByTagName(e.tag or '*'))))
+                    # IE <= 8 doesn't support Element.getElementById, so get by tag and filter instead
+                    extend(els, extend([], root.getElementsByTagName(e.tag or '*')).filter((el) -> el.id == id))
                     
-                return # prevent useless return from forEach
-            
+                return
+                
         else if e.classes and find.byClass
             # Find by class
             els = roots.map((root) ->
@@ -331,14 +336,14 @@
             # Filter by class
             e.classes.forEach (cls) ->
                 els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
-                return # prevent useless return from forEach
+                return
 
         if e.attrs
             # Filter by attribute
             e.attrs.forEach ({name, op, val}) ->
                 
                 els = els.filter (el) ->
-                    attr = if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
+                    attr = getAttribute(el, name)
                     value = attr + ""
             
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
@@ -353,7 +358,7 @@
                         else false # should never get here...
                     )
 
-                return # prevent useless return from forEach
+                return
             
         if e.pseudos
             # Filter by pseudo
@@ -373,11 +378,11 @@
                             eachElement parent, first, next, (el) ->
                                 el._sel_index = ++indices['*']
                                 el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
-                                return # prevent useless return from eachElement
+                                return
                     
                             parent._sel_children = indices
                     
-                        return # prevent useless return from forEach
+                        return
             
                 # We need to wait to replace els so we can unset the special attributes
                 filtered = els.filter((el) -> pseudo(el, val))
@@ -387,15 +392,15 @@
                         if (parent = el.parentNode) and parent._sel_children != undefined
                             eachElement parent, first, next, (el) ->
                                 el._sel_index = el._sel_indexOfType = undefined
-                                return # prevent useless return from eachElement
+                                return
                                 
                             parent._sel_children = undefined
                     
-                        return # prevent useless return from forEach
+                        return
                     
                 els = filtered
 
-                return # prevent useless return from forEach
+                return
             
         return els
 
@@ -406,8 +411,8 @@
         # Check whether getting url attributes returns the proper value
         div.innerHTML = '<a href="#"></a>'
         if div.firstChild.getAttribute('href') != '#'
-            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
-            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
+            _attributeMap['href'] = (el) -> el.getAttribute('href', 2)
+            _attributeMap['src'] = (el) -> el.getAttribute('src', 2)
             
         # Check if we can select on second class name
         div.innerHTML = '<div class="a b"></div><div class="a"></div>'
@@ -426,12 +431,18 @@
         # Prevent IE from leaking memory
         div = null
         
-        return # prevent useless return from do
+        return
     
     
     ### pseudos.coffee ###
 
-    nthPattern = /\s*((?:\+|\-)?(\d*))n\s*((?:\+|\-)\s*\d+)?\s*/;
+    nthPattern = ///
+        \s*
+        (\+|\-)? (\d*)n      # Coefficient
+        \s*
+        (?: (\+|\-) \s* (\d+))?  # Constant
+        \s*
+    ///
 
     checkNth = (i, val) ->
         if not val then false
@@ -439,8 +450,9 @@
         else if val == 'even' then (i % 2 == 0)
         else if val == 'odd' then (i % 2 == 1)
         else if m = nthPattern.exec(val)
-            a = if m[2] then parseInt(m[1]) else parseInt(m[1] + '1')   # Check case where coefficient is omitted
-            b = if m[3] then parseInt(m[3].replace(/\s*/, '')) else 0   # Check case where constant is omitted
+            # Convert values and check omissions
+            a = parseInt((m[1] or '+') + (if m[2] == '' then '1' else m[2]))
+            b = parseInt((m[3] or '+') + (if m[4] == '' then '0' else m[4]))
 
             if not a then (i == b)
             else (((i - b) % a == 0) and ((i - b) / a >= 0))
@@ -448,6 +460,14 @@
         else throw new Error('invalid nth expression')
 
     sel.pseudos = 
+        # CSS 3
+        selected: (el) -> el.selected == true
+        focus: (el) -> el.ownerDocument.activeElement == el
+        
+        enabled: (el) -> el.disabled == false
+        checked: (el) -> el.checked == true
+        disabled: (el) -> el.disabled == true
+        
         # See filter() for how el._sel_* values get set
         'first-child': (el) -> el._sel_index == 1
         'only-child': (el) -> el._sel_index == 1 and el.parentNode._sel_children['*'] == 1
@@ -457,13 +477,29 @@
         'only-of-type': (el) -> el._sel_indexOfType == 1 and el.parentNode._sel_children[el.nodeName] == 1
         'nth-of-type': (el, val) -> checkNth(el._sel_indexOfType, val)
 
+        root: (el) -> (el.ownerDocument.documentElement == el)
         target: (el) -> (el.getAttribute('id') == location.hash.substr(1))
-        checked: (el) -> el.checked == true
-        enabled: (el) -> el.disabled == false
-        disabled: (el) -> el.disabled == true
-        selected: (el) -> el.selected == true
-        focus: (el) -> el.ownerDocument.activeElement == el
         empty: (el) -> not el.childNodes.length
+
+        # CSS 4
+        'local-link': (el, val) ->
+            return false if not el.href
+
+            href = el.href.replace(/#.*?$/, '')
+            location = el.ownerDocument.location.href.replace(/#.*?$/, '')
+            
+            if val == undefined
+                return href == location
+            else
+                # Split into parts and remove protocol
+                href = href.split('/').slice(2)
+                location = location.split('/').slice(2)
+                
+                for i in [0..val] by 1
+                    if href[i] != location[i]
+                        return false
+                        
+                return true
 
         # Extensions
         contains: (el, val) -> (el.textContent ? el.innerText).indexOf(val) >= 0
@@ -506,14 +542,22 @@
                             el._sel_mark = undefined
                             return
                     
+                    if e.matches
+                        els = sel.intersection(els, find(e.matches, outerRoots, matchRoots))
+                        
                     if e.not
                         els = sel.difference(els, find(e.not, outerRoots, matchRoots))
             
+                    # Special case for sel.matching to allow roots to be matched
                     if matchRoots
                         els = sel.union(els, filter(e, takeElements(outerRoots)))
             
                     if e.child
-                        els = evaluate(e.child, els)
+                        if e.subject
+                            # Need to check each element individually
+                            els = els.filter((el) -> evaluate(e.child, [el]).length)
+                        else
+                            els = evaluate(e.child, els)
 
                 when '+', '~', ','
                     if e.children.length == 2
@@ -532,7 +576,7 @@
                             if (el = nextElementSibling(el))
                                 el._sel_mark = true 
                                 
-                            return # prevent useless return from forEach
+                            return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
@@ -540,14 +584,14 @@
                             if (el = nextElementSibling(el))
                                 el._sel_mark = undefined
                                 
-                            return # prevent useless return from forEach
+                            return
                     
                     else if e.type == '~'
                         sibs.forEach (el) ->
                             while (el = nextElementSibling(el)) and not el._sel_mark
                                 el._sel_mark = true
                                 
-                            return # prevent useless return from forEach
+                            return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
@@ -555,7 +599,7 @@
                             while (el = nextElementSibling(el)) and el._sel_mark
                                 el._sel_mark = undefined
                                 
-                            return # prevent useless return from forEach
+                            return
 
         return els
     ### select.coffee ###

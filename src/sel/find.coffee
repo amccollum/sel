@@ -1,10 +1,12 @@
     ### find.coffee ###
 
     # Attributes that we get directly off the node
-    _attrMap = {
+    _attributeMap = {
         'tag': (el) -> el.tagName
         'class': (el) -> el.className
     }
+    
+    getAttribute = (el, name) -> if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
     
     # Map of all the positional pseudos and whether or not they are reversed
     _positionalPseudos = {
@@ -24,20 +26,22 @@
     
 
     find = (e, roots) ->
-        if e.id
-            # Find by id
+        if e.id or e.idref
+            # Find by id or idref
             els = []
             roots.forEach (root) ->
+                id = if e.idref then getAttribute(root, e.idref) else e.id
+                
                 if root.getElementById
-                    el = root.getElementById(e.id)
-                    els.push(el) if el
-                    
+                    el = root.getElementById(id)
+                    els.push(el) if el and el.id == id
+                        
                 else
-                    # IE <= 8 doesn't support Element.getElementById, so make filter() do the work
-                    els = extend(els, takeElements(extend([], root.getElementsByTagName(e.tag or '*'))))
+                    # IE <= 8 doesn't support Element.getElementById, so get by tag and filter instead
+                    extend(els, extend([], root.getElementsByTagName(e.tag or '*')).filter((el) -> el.id == id))
                     
-                return # prevent useless return from forEach
-            
+                return
+                
         else if e.classes and find.byClass
             # Find by class
             els = roots.map((root) ->
@@ -83,14 +87,14 @@
             # Filter by class
             e.classes.forEach (cls) ->
                 els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
-                return # prevent useless return from forEach
+                return
 
         if e.attrs
             # Filter by attribute
             e.attrs.forEach ({name, op, val}) ->
                 
                 els = els.filter (el) ->
-                    attr = if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
+                    attr = getAttribute(el, name)
                     value = attr + ""
             
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
@@ -105,7 +109,7 @@
                         else false # should never get here...
                     )
 
-                return # prevent useless return from forEach
+                return
             
         if e.pseudos
             # Filter by pseudo
@@ -125,11 +129,11 @@
                             eachElement parent, first, next, (el) ->
                                 el._sel_index = ++indices['*']
                                 el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
-                                return # prevent useless return from eachElement
+                                return
                     
                             parent._sel_children = indices
                     
-                        return # prevent useless return from forEach
+                        return
             
                 # We need to wait to replace els so we can unset the special attributes
                 filtered = els.filter((el) -> pseudo(el, val))
@@ -139,15 +143,15 @@
                         if (parent = el.parentNode) and parent._sel_children != undefined
                             eachElement parent, first, next, (el) ->
                                 el._sel_index = el._sel_indexOfType = undefined
-                                return # prevent useless return from eachElement
+                                return
                                 
                             parent._sel_children = undefined
                     
-                        return # prevent useless return from forEach
+                        return
                     
                 els = filtered
 
-                return # prevent useless return from forEach
+                return
             
         return els
 
@@ -158,8 +162,8 @@
         # Check whether getting url attributes returns the proper value
         div.innerHTML = '<a href="#"></a>'
         if div.firstChild.getAttribute('href') != '#'
-            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
-            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
+            _attributeMap['href'] = (el) -> el.getAttribute('href', 2)
+            _attributeMap['src'] = (el) -> el.getAttribute('src', 2)
             
         # Check if we can select on second class name
         div.innerHTML = '<div class="a b"></div><div class="a"></div>'
@@ -178,6 +182,6 @@
         # Prevent IE from leaking memory
         div = null
         
-        return # prevent useless return from do
+        return
     
     
