@@ -63,15 +63,7 @@
     filterDescendants = (els) -> els.filter (el, i) -> el and not (i and (els[i-1] == el or contains(els[i-1], el)))
 
     # Return descendants one level above the given elements
-    outerParents = (els) ->
-        r = []
-        els.forEach (el) ->
-            if (el = el.parentNode) and el not in r
-                r.push(parent)
-                
-            return
-            
-        return filterDescendants(r)
+    outerParents = (els) -> filterDescendents(els.map((el) -> el.parentNode))
         
     # Return the topmost root elements of the array
     findRoots = (els) ->
