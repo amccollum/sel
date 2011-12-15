@@ -1,7 +1,7 @@
     ### find.coffee ###
 
     # Attributes that we get directly off the node
-    _attributeMap = {
+    _attrMap = {
         'tag': (el) -> el.tagName
         'class': (el) -> el.className
     }
@@ -26,19 +26,19 @@
     
 
     find = (e, roots) ->
-        if e.id or e.idref
-            # Find by id or idref
+        if e.id
+            # Find by id
             els = []
             roots.forEach (root) ->
-                id = if e.idref then getAttribute(root, e.idref) else e.id
+                doc = root.ownerDocument or root
                 
-                if root.getElementById
-                    el = root.getElementById(id)
-                    els.push(el) if el and el.id == id
+                if root == doc or contains(doc.documentElement, root)
+                    el = doc.getElementById(id)
+                    els.push(el) if el and contains(root, el)
                         
                 else
-                    # IE <= 8 doesn't support Element.getElementById, so get by tag and filter instead
-                    extend(els, extend([], root.getElementsByTagName(e.tag or '*')).filter((el) -> el.id == id))
+                    # Detached elements, so make filter do the work
+                    extend(els, root.getElementsByTagName(e.tag or '*'))
                     
                 return
                 
@@ -162,8 +162,8 @@
         # Check whether getting url attributes returns the proper value
         div.innerHTML = '<a href="#"></a>'
         if div.firstChild.getAttribute('href') != '#'
-            _attributeMap['href'] = (el) -> el.getAttribute('href', 2)
-            _attributeMap['src'] = (el) -> el.getAttribute('src', 2)
+            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
+            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
             
         # Check if we can select on second class name
         div.innerHTML = '<div class="a b"></div><div class="a"></div>'

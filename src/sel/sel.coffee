@@ -125,15 +125,11 @@
         ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
     ///g
     
-    combinatorPattern = /// ^ \s* ([,+~]) ///
+    combinatorPattern = /// ^ \s* ([,+~] | /([-\w]+)/) ///
     
     selectorPattern = /// ^ 
         
         (?: \s* (>) )? # child selector
-        
-        \s*
-        
-        (?: /([-\w]+)/ )? # id ref
         
         \s*
         
@@ -158,8 +154,8 @@
     ///
 
     selectorGroups = {
-        type: 1, idref: 2, tag: 3, id: 4, classes: 5,
-        attrsAll: 6, pseudosAll: 11, subject: 14
+        type: 1, tag: 2, id: 3, classes: 4,
+        attrsAll: 5, pseudosAll: 10, subject: 13
     }
 
     parse = (selector) ->
@@ -194,7 +190,10 @@
     parseSimple = (selector) ->
         if e = combinatorPattern.exec(selector)
             e.compound = true
-            e.type = e[1]
+            e.type = e[1].charAt(0)
+            
+            if e.type == '/'
+                e.idref = e[2]
             
         else if e = selectorPattern.exec(selector)
             e.simple = true
@@ -250,7 +249,7 @@
     ### find.coffee ###
 
     # Attributes that we get directly off the node
-    _attributeMap = {
+    _attrMap = {
         'tag': (el) -> el.tagName
         'class': (el) -> el.className
     }
@@ -275,19 +274,19 @@
     
 
     find = (e, roots) ->
-        if e.id or e.idref
-            # Find by id or idref
+        if e.id
+            # Find by id
             els = []
             roots.forEach (root) ->
-                id = if e.idref then getAttribute(root, e.idref) else e.id
+                doc = root.ownerDocument or root
                 
-                if root.getElementById
-                    el = root.getElementById(id)
-                    els.push(el) if el and el.id == id
+                if root == doc or contains(doc.documentElement, root)
+                    el = doc.getElementById(id)
+                    els.push(el) if el and contains(root, el)
                         
                 else
-                    # IE <= 8 doesn't support Element.getElementById, so get by tag and filter instead
-                    extend(els, extend([], root.getElementsByTagName(e.tag or '*')).filter((el) -> el.id == id))
+                    # Detached elements, so make filter do the work
+                    extend(els, root.getElementsByTagName(e.tag or '*'))
                     
                 return
                 
@@ -411,8 +410,8 @@
         # Check whether getting url attributes returns the proper value
         div.innerHTML = '<a href="#"></a>'
         if div.firstChild.getAttribute('href') != '#'
-            _attributeMap['href'] = (el) -> el.getAttribute('href', 2)
-            _attributeMap['src'] = (el) -> el.getAttribute('src', 2)
+            _attrMap['href'] = (el) -> el.getAttribute('href', 2)
+            _attrMap['src'] = (el) -> el.getAttribute('src', 2)
             
         # Check if we can select on second class name
         div.innerHTML = '<div class="a b"></div><div class="a"></div>'
@@ -559,7 +558,7 @@
                         else
                             els = evaluate(e.child, els)
 
-                when '+', '~', ','
+                when '+', '~', ',', '/'
                     if e.children.length == 2
                         sibs = evaluate(e.children[0], roots, matchRoots)
                         els = evaluate(e.children[1], roots, matchRoots)
@@ -570,6 +569,10 @@
                     if e.type == ','
                         # sibs here is just the result of the first selector
                         els = sel.union(sibs, els)
+                        
+                    else if e.type == '/'
+                        ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^#/, ''))
+                        els = els.filter((el) -> el.id in ids)
                     
                     else if e.type == '+'
                         sibs.forEach (el) ->

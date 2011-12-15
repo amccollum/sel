@@ -11,15 +11,11 @@
         ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
     ///g
     
-    combinatorPattern = /// ^ \s* ([,+~]) ///
+    combinatorPattern = /// ^ \s* ([,+~] | /([-\w]+)/) ///
     
     selectorPattern = /// ^ 
         
         (?: \s* (>) )? # child selector
-        
-        \s*
-        
-        (?: /([-\w]+)/ )? # id ref
         
         \s*
         
@@ -44,8 +40,8 @@
     ///
 
     selectorGroups = {
-        type: 1, idref: 2, tag: 3, id: 4, classes: 5,
-        attrsAll: 6, pseudosAll: 11, subject: 14
+        type: 1, tag: 2, id: 3, classes: 4,
+        attrsAll: 5, pseudosAll: 10, subject: 13
     }
 
     parse = (selector) ->
@@ -80,7 +76,10 @@
     parseSimple = (selector) ->
         if e = combinatorPattern.exec(selector)
             e.compound = true
-            e.type = e[1]
+            e.type = e[1].charAt(0)
+            
+            if e.type == '/'
+                e.idref = e[2]
             
         else if e = selectorPattern.exec(selector)
             e.simple = true

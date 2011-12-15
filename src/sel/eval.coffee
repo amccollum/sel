@@ -38,7 +38,7 @@
                         else
                             els = evaluate(e.child, els)
 
-                when '+', '~', ','
+                when '+', '~', ',', '/'
                     if e.children.length == 2
                         sibs = evaluate(e.children[0], roots, matchRoots)
                         els = evaluate(e.children[1], roots, matchRoots)
@@ -49,6 +49,10 @@
                     if e.type == ','
                         # sibs here is just the result of the first selector
                         els = sel.union(sibs, els)
+                        
+                    else if e.type == '/'
+                        ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^#/, ''))
+                        els = els.filter((el) -> el.id in ids)
                     
                     else if e.type == '+'
                         sibs.forEach (el) ->

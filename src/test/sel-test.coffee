@@ -5,20 +5,24 @@ sel = require('sel')
 detached = '''
     <div id="a" class="parent">
         <ul id="b" class="child">
-            <li id="c" class="odd"><a href="#foo">foo</a></li>
-            <li id="d" class="even"><a href="#bar">bar</a></li>
+            <li id="c" ref="d" class="odd">
+                <a id="local-link" href="#foo">foo</a>
+            </li>
+            <li id="d" class="even">
+                <a id="external-link" href="http://www.google.com">bar</a>
+            </li>
             <li id="e" class="odd">
                 <ul class="nested">
                     <!-- Comment -->
-                    <li class="descendant"></li>
-                    <li class="descendant"></li>
+                    <li id="foo" class="descendant"></li>
+                    <li id="bar" class="descendant"></li>
                     <li class="descendant"></li>
                 </ul>
             </li>
             <li id="f" class="even"></li>
             <li id="g" class="odd"></li>
         </ul>
-        <ul class="child">
+        <ul id="h" class="child">
             <li class="odd"></li>
             <li class="even"></li>
             <li class="odd"></li>
@@ -34,16 +38,16 @@ vows.add 'Miscellaneous Tests',
             
         'relative selectors':
             '`> ul`':
-                topic: (els) -> sel.sel('> ul', els)
+                topic: (root) -> sel.sel('> ul', root)
                 'should return 2 elements': (result) -> assert.equal result.length, 2
 
         'ignore comments':
             '`#e *`':
-                topic: (els) -> sel.sel('#e *', els)
+                topic: (root) -> sel.sel('#e *', root)
                 'should find only 4 elements': (result) -> assert.equal result.length, 4
                 
         'using the li elements':
-            topic: (els) -> sel.sel('li', els)
+            topic: (root) -> sel.sel('li', root)
 
             'matching':
                 '`.even`':
@@ -61,3 +65,27 @@ vows.add 'Miscellaneous Tests',
                 '`.even li, .odd li`':
                     topic: (els) -> sel.matching(els, '.even li, .odd li')
                     'should return 3 elements': (result) -> assert.equal result.length, 3
+
+vows.add 'CSS4 Tests',
+    'with detached elements,': 
+        topic: () -> sel.sel(detached)
+            
+        'overriding subjects':
+            '`.child! #foo`':
+                topic: (root) -> sel.sel('.child! #foo', root)
+                'should return the #b element': (result) -> assert.equal result[0].id, 'b'
+
+            '`ul li! ul li`':
+                topic: (root) -> sel.sel('ul li! ul li', root)
+                'should return the #e element': (result) -> assert.equal result[0].id, 'e'
+                    
+        'idrefs':
+            '`#c /ref/ li`':
+                topic: (root) -> sel.sel('#c /ref/ li', root)
+                'should return the #d element': (result) -> assert.equal result[0].id, 'd'
+                
+        ':local-link':
+            '`a:local-link`':
+                topic: (root) -> sel.sel('a:local-link', root)
+                'should return the local link': (result) -> assert.equal result[0].id, 'local-link'
+        
