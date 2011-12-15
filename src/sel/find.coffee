@@ -28,13 +28,15 @@
             # Find by id
             els = []
             roots.forEach (root) ->
-                if root.getElementById
-                    el = root.getElementById(e.id)
-                    els.push(el) if el
-                    
+                doc = root.ownerDocument or root
+                
+                if root == doc or contains(doc.documentElement, root)
+                    el = doc.getElementById(id)
+                    els.push(el) if el and contains(root, el)
+                        
                 else
-                    # IE <= 8 doesn't support Element.getElementById, so make filter() do the work
-                    els = extend(els, takeElements(extend([], root.getElementsByTagName(e.tag or '*'))))
+                    # Detached elements, so make filter do the work
+                    extend(els, root.getElementsByTagName(e.tag or '*'))
                     
                 return # prevent useless return from forEach
             
