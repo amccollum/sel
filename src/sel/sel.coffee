@@ -117,7 +117,7 @@
     attrPattern = ///
         \[
             \s* ([-\w]+) \s*
-            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] ) \s* )?
+            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] \s* (i)) \s* )?
         \]
     ///g
 
@@ -155,7 +155,7 @@
 
     selectorGroups = {
         type: 1, tag: 2, id: 3, classes: 4,
-        attrsAll: 5, pseudosAll: 10, subject: 13
+        attrsAll: 5, pseudosAll: 11, subject: 14
     }
 
     parse = (selector) ->
@@ -207,7 +207,7 @@
 
             if e.attrsAll
                 e.attrs = []
-                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
+                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal, ignoreCase) ->
                     name = name.toLowerCase()
                     val or= quotedVal
                     
@@ -225,7 +225,10 @@
 
                             return ""
                     
-                    e.attrs.push({name: name, op: op, val: val})
+                    if ignoreCase
+                        val = val.toLowerCase()
+                
+                    e.attrs.push({name: name, op: op, val: val, ignoreCase: ignoreCase})
                     return ""
 
             if e.pseudosAll
@@ -329,12 +332,15 @@
 
         if e.attrs
             # Filter by attribute
-            e.attrs.forEach ({name, op, val}) ->
-                
+            e.attrs.forEach ({name, op, val, ignoreCase}) ->
                 els = els.filter (el) ->
                     attr = getAttribute(el, name)
                     value = attr + ""
             
+                    if ignoreCase
+                        # We already lowercase val in the parser
+                        value = value.toLowerCase()
+                
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
                         if not op then true
                         else if op == '=' then value == val

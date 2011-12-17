@@ -79,12 +79,15 @@
 
         if e.attrs
             # Filter by attribute
-            e.attrs.forEach ({name, op, val}) ->
-                
+            e.attrs.forEach ({name, op, val, ignoreCase}) ->
                 els = els.filter (el) ->
                     attr = getAttribute(el, name)
                     value = attr + ""
             
+                    if ignoreCase
+                        # We already lowercase val in the parser
+                        value = value.toLowerCase()
+                
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
                         if not op then true
                         else if op == '=' then value == val
