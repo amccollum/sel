@@ -73,23 +73,34 @@ vows.add 'CSS4 Tests',
         'overriding subjects':
             '`.child! #foo`':
                 topic: (root) -> sel.sel('.child! #foo', root)
+                'should return only one element': (result) -> assert.equal result.length, 1
                 'should return the #b element': (result) -> assert.equal result[0].id, 'b'
 
             '`ul li! ul li`':
                 topic: (root) -> sel.sel('ul li! ul li', root)
+                'should return only one element': (result) -> assert.equal result.length, 1
                 'should return the #e element': (result) -> assert.equal result[0].id, 'e'
                     
         'idrefs':
             '`#c /ref/ li`':
                 topic: (root) -> sel.sel('#c /ref/ li', root)
+                'should return only one element': (result) -> assert.equal result.length, 1
                 'should return the #d element': (result) -> assert.equal result[0].id, 'd'
                 
             '`#c a /href/ *`':
                 topic: (root) -> sel.sel('#c a /href/ *', root)
+                'should return only one element': (result) -> assert.equal result.length, 1
                 'should return the #foo element': (result) -> assert.equal result[0].id, 'foo'
 
         ':local-link':
             '`a:local-link`':
                 topic: (root) -> sel.sel('a:local-link', root)
+                'should return only one element': (result) -> assert.equal result.length, 1
                 'should return the local link': (result) -> assert.equal result[0].id, 'local-link'
+        
+        ':nth-match':
+            '`#b li:nth-match(2 of .even)`':
+                topic: (root) -> sel.sel('#b li:nth-match(2 of .even)', root)
+                'should return only one element': (result) -> assert.equal result.length, 1
+                'should return the second li.even': (result) -> assert.equal result[0].id, 'f'
         

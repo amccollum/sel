@@ -74,18 +74,20 @@
             else throw new Error('invalid nth expression')
 
         # nth-match and nth-last-match
+        nthMatchPattern = ///^(.*?) \s* of \s* (.*)$///
+        
         nthMatch = (reversed) ->
             return (els, val, roots) ->
-                val = val.split(' of ', 1)
+                val = nthMatchPattern.exec(val)
                 
-                set = select(val[1], roots)
+                set = select(val[2], roots)
                 len = set.length
             
                 set.forEach (el, i) ->
                     el._sel_index = (if reversed then (len - i) else i) + 1
                     return
 
-                filtered = els.filter((el) -> checkNth(el._sel_index, val[0]))
+                filtered = els.filter((el) -> checkNth(el._sel_index, val[1]))
             
                 set.forEach (el, i) ->
                     el._sel_index = undefined
