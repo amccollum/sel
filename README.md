@@ -1,4 +1,4 @@
-Sel - Sizzle, but smaller (and faster!)
+Sel - A small, powerful CSS selector library.
 ===
 Sel is a CSS selector engine, like Sizzle, which forms the core of jQuery.
 
@@ -8,12 +8,23 @@ Sel is written in CoffeeScript with an emphasis on making the code clear and eas
 
 Support
 -------
-Sel supports all of the [CSS3 selectors](http://www.w3.org/TR/css3-selectors/#selectors), as well as the following selector extensions:
+Sel supports all of the [CSS Level 3 Selectors](http://www.w3.org/TR/css3-selectors/#selectors), as well as the following
+[Draft CSS Level 4 Selectors](http://dev.w3.org/csswg/selectors4/#overview):
 
 ``` css
-[attr!=val]
+div! .box                   /* subject overriding */ 
+label /for/ input           /* id references */
+[attr = "val" i]            /* case insensitive attribute matching */
+div:nth-match(3 of .box)    /* :nth-match and :nth-last-match */
+a:local-link(0)             /* :local-link pseudo-selector */
+```
+
+Sel also supports the following extensions:
+
+``` css
+[attr != "val"]
 :contains(text)
-:with(selector) /* or :has(selector) */
+:with(selector)             /* or :has(selector) */
 :without(selector)
 ```
 
@@ -50,10 +61,21 @@ should return `true` if the element matches the pseudo-selector and `false` othe
 sel.pseudos.foo = function (el, val) {
     // val === 'bar'
     return el.getAttribute('foo') === val;
-}
+};
 
 sel.sel('div:foo(bar)');
 ```
+
+For pseudo-selectors that need to operate on the whole set of currently matched elements, add the `batch` attribute:
+
+``` js
+sel.pseudos.bar = function (els, val, roots) {
+    // Do something with all of the elements
+    return els.filter(function (el, i) { return (i < val); });
+};
+
+sel.pseudos.bar.batch = true
+
 
 Ender
 -----
