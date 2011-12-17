@@ -106,7 +106,7 @@
         return r
     
     # Define these operations in terms of the above element operations to reduce code size
-    sel.union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
-    sel.intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
-    sel.difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
+    sel.union = union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
+    sel.intersection = intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
+    sel.difference = difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
 

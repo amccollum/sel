@@ -8,7 +8,7 @@
                 when ' ', '>'
                     # We only need to search from the outermost roots
                     outerRoots = filterDescendants(roots)
-                    els = find(e, outerRoots)
+                    els = find(e, outerRoots, matchRoots)
 
                     if e.type == '>'
                         roots.forEach (el) ->
@@ -21,16 +21,6 @@
                             el._sel_mark = undefined
                             return
                     
-                    if e.matches
-                        els = sel.intersection(els, find(e.matches, outerRoots, matchRoots))
-                        
-                    if e.not
-                        els = sel.difference(els, find(e.not, outerRoots, matchRoots))
-            
-                    # Special case for sel.matching to allow roots to be matched
-                    if matchRoots
-                        els = sel.union(els, filter(e, takeElements(outerRoots)))
-            
                     if e.child
                         if e.subject
                             # Need to check each element individually
@@ -48,7 +38,7 @@
             
                     if e.type == ','
                         # sibs here is just the result of the first selector
-                        els = sel.union(sibs, els)
+                        els = union(sibs, els)
                         
                     else if e.type == '/'
                         ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^#/, ''))

@@ -84,6 +84,10 @@ vows.add 'CSS4 Tests',
                 topic: (root) -> sel.sel('#c /ref/ li', root)
                 'should return the #d element': (result) -> assert.equal result[0].id, 'd'
                 
+            '`#c a /href/ *`':
+                topic: (root) -> sel.sel('#c a /href/ *', root)
+                'should return the #foo element': (result) -> assert.equal result[0].id, 'foo'
+
         ':local-link':
             '`a:local-link`':
                 topic: (root) -> sel.sel('a:local-link', root)

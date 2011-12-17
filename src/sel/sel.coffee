@@ -108,9 +108,9 @@
         return r
     
     # Define these operations in terms of the above element operations to reduce code size
-    sel.union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
-    sel.intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
-    sel.difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
+    sel.union = union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
+    sel.intersection = intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
+    sel.difference = difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
 
     ### parser.coffee ###
 
@@ -235,8 +235,10 @@
 
                     if name == 'not'
                         e.not = parse(val)
+                        
                     else if name == 'matches' or name == 'any'
                         e.matches = parse(val)
+                        
                     else
                         e.pseudos.push({name: name, val: val})
         
@@ -256,24 +258,7 @@
     
     getAttribute = (el, name) -> if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
     
-    # Map of all the positional pseudos and whether or not they are reversed
-    _positionalPseudos = {
-        'nth-child': false
-        'nth-of-type': false
-        'first-child': false
-        'first-of-type': false
-
-        'nth-last-child': true
-        'nth-last-of-type': true
-        'last-child': true
-        'last-of-type': true
-
-        'only-child': false
-        'only-of-type': false
-    }
-    
-
-    find = (e, roots) ->
+    find = (e, roots, matchRoots) ->
         if e.id
             # Find by id
             els = []
@@ -295,7 +280,7 @@
             els = roots.map((root) ->
                 e.classes.map((cls) ->
                     root.getElementsByClassName(cls)
-                ).reduce(sel.union)
+                ).reduce(union)
             ).reduce(extend, [])
 
             # Don't need to filter on class
@@ -314,15 +299,20 @@
             e.ignoreTag = true
 
         if els and els.length
-            els = filter(e, els)
+            els = filter(els, e, roots, matchRoots)
         else
             els = []
             
         e.ignoreTag = undefined
         e.ignoreClasses = undefined
+
+        if matchRoots
+            # Allow roots to be matched, and separately filter
+            els = union(els, filter(takeElements(roots), e, roots, matchRoots))
+
         return els
 
-    filter = (e, els) ->
+    filter = (els, e, roots, matchRoots) ->
         if e.id
             # Filter by id
             els = els.filter((el) -> el.id == e.id)
@@ -362,42 +352,14 @@
         if e.pseudos
             # Filter by pseudo
             e.pseudos.forEach ({name, val}) ->
-
-                pseudo = sel.pseudos[name]
+                pseudo = pseudos[name]
                 if not pseudo
                     throw new Error("no pseudo with name: #{name}")
-        
-                if name of _positionalPseudos
-                    first = if _positionalPseudos[name] then 'lastChild' else 'firstChild'
-                    next = if _positionalPseudos[name] then 'previousSibling' else 'nextSibling'
-            
-                    els.forEach (el) ->
-                        if (parent = el.parentNode) and parent._sel_children == undefined
-                            indices = { '*': 0 }
-                            eachElement parent, first, next, (el) ->
-                                el._sel_index = ++indices['*']
-                                el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
-                                return
                     
-                            parent._sel_children = indices
-                    
-                        return
-            
-                # We need to wait to replace els so we can unset the special attributes
-                filtered = els.filter((el) -> pseudo(el, val))
-
-                if name of _positionalPseudos
-                    els.forEach (el) ->
-                        if (parent = el.parentNode) and parent._sel_children != undefined
-                            eachElement parent, first, next, (el) ->
-                                el._sel_index = el._sel_indexOfType = undefined
-                                return
-                                
-                            parent._sel_children = undefined
-                    
-                        return
-                    
-                els = filtered
+                if pseudo.batch
+                    els = pseudo(els, val, roots, matchRoots)
+                else
+                    els = els.filter((el) -> pseudo(el, val))
 
                 return
             
@@ -435,30 +397,7 @@
     
     ### pseudos.coffee ###
 
-    nthPattern = ///
-        \s*
-        (\+|\-)? (\d*)n      # Coefficient
-        \s*
-        (?: (\+|\-) \s* (\d+))?  # Constant
-        \s*
-    ///
-
-    checkNth = (i, val) ->
-        if not val then false
-        else if isFinite(val) then `i == val`       # Use loose equality check since val could be a string
-        else if val == 'even' then (i % 2 == 0)
-        else if val == 'odd' then (i % 2 == 1)
-        else if m = nthPattern.exec(val)
-            # Convert values and check omissions
-            a = parseInt((m[1] or '+') + (if m[2] == '' then '1' else m[2]))
-            b = parseInt((m[3] or '+') + (if m[4] == '' then '0' else m[4]))
-
-            if not a then (i == b)
-            else (((i - b) % a == 0) and ((i - b) / a >= 0))
-
-        else throw new Error('invalid nth expression')
-
-    sel.pseudos = 
+    sel.pseudos = pseudos = 
         # CSS 3
         selected: (el) -> el.selected == true
         focus: (el) -> el.ownerDocument.activeElement == el
@@ -467,15 +406,6 @@
         checked: (el) -> el.checked == true
         disabled: (el) -> el.disabled == true
         
-        # See filter() for how el._sel_* values get set
-        'first-child': (el) -> el._sel_index == 1
-        'only-child': (el) -> el._sel_index == 1 and el.parentNode._sel_children['*'] == 1
-        'nth-child': (el, val) -> checkNth(el._sel_index, val)
-
-        'first-of-type': (el) -> el._sel_indexOfType == 1
-        'only-of-type': (el) -> el._sel_indexOfType == 1 and el.parentNode._sel_children[el.nodeName] == 1
-        'nth-of-type': (el, val) -> checkNth(el._sel_indexOfType, val)
-
         root: (el) -> (el.ownerDocument.documentElement == el)
         target: (el) -> (el.getAttribute('id') == location.hash.substr(1))
         empty: (el) -> not el.childNodes.length
@@ -504,20 +434,121 @@
         contains: (el, val) -> (el.textContent ? el.innerText).indexOf(val) >= 0
         with: (el, val) -> select(val, [el]).length > 0
         without: (el, val) -> select(val, [el]).length == 0
-
-    # Pseudo function synonyms
-    (sel.pseudos[synonym] = sel.pseudos[name]) for synonym, name of {
-        'has': 'with',
         
-        # For these methods, the reversing is done in filterPseudo
-        'last-child': 'first-child',
-        'nth-last-child': 'nth-child',
+    # :not and :matches
+    pseudos.matches = (els, val, roots, matchRoots) -> intersection(els, select(val, roots, matchRoots))
+    pseudos.matches.batch = true
+    
+    pseudos.not = (els, val, roots, matchRoots) -> difference(els, select(val, roots, matchRoots))
+    pseudos.not.batch = true
 
-        'last-of-type': 'first-of-type',
-        'nth-last-of-type': 'nth-of-type',
-    }
+    # Pseudo Synonyms
+    pseudos['has'] = pseudos['with']
+
+    # Positional Pseudos
+    do ->
+        nthPattern = ///
+            \s*
+            (\+|\-)? (\d*)n      # Coefficient
+            \s*
+            (?: (\+|\-) \s* (\d+))?  # Constant
+            \s*
+        ///
         
+        checkNth = (i, val) ->
+            if not val then false
+            else if isFinite(val) then `i == val`       # Use loose equality check since val could be a string
+            else if val == 'even' then (i % 2 == 0)
+            else if val == 'odd' then (i % 2 == 1)
+            else if m = nthPattern.exec(val)
+                # Convert values and check omissions
+                a = parseInt((m[1] or '+') + (if m[2] == '' then '1' else m[2]))
+                b = parseInt((m[3] or '+') + (if m[4] == '' then '0' else m[4]))
 
+                if not a then (i == b)
+                else (((i - b) % a == 0) and ((i - b) / a >= 0))
+
+            else throw new Error('invalid nth expression')
+
+        # nth-match and nth-last-match
+        nthMatch = (reversed) ->
+            return (els, val, roots) ->
+                val = val.split(' of ', 1)
+                
+                set = select(val[1], roots)
+                len = set.length
+            
+                set.forEach (el, i) ->
+                    el._sel_index = (if reversed then (len - i) else i) + 1
+                    return
+
+                filtered = els.filter((el) -> checkNth(el._sel_index, val[0]))
+            
+                set.forEach (el, i) ->
+                    el._sel_index = undefined
+                    return
+            
+                return filtered
+        
+        pseudos['nth-match'] = nthMatch()
+        pseudos['nth-match'].batch = true
+        
+        pseudos['nth-last-match'] = nthMatch(true)
+        pseudos['nth-last-match'].batch = true
+
+        # All other positional pseudo-selectors
+        nthPositional = (fn, reversed) ->
+            first = if reversed then 'lastChild' else 'firstChild'
+            next = if reversed then 'previousSibling' else 'nextSibling'
+
+            return (els) ->
+                els.forEach (el) ->
+                    if (parent = el.parentNode) and parent._sel_children == undefined
+                        indices = { '*': 0 }
+                        eachElement parent, first, next, (el) ->
+                            el._sel_index = ++indices['*']
+                            el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
+                            return
+
+                        parent._sel_children = indices
+
+                    return
+                
+                filtered = els.filter((el) -> fn(el))
+
+                els.forEach (el) ->
+                    if (parent = el.parentNode) and parent._sel_children != undefined
+                        eachElement parent, first, next, (el) ->
+                            el._sel_index = el._sel_indexOfType = undefined
+                            return
+                    
+                        parent._sel_children = undefined
+        
+                    return
+                
+                return filtered
+
+        positionalPseudos = {
+            'first-child': (el) -> el._sel_index == 1
+            'only-child': (el) -> el._sel_index == 1 and el.parentNode._sel_children['*'] == 1
+            'nth-child': (el, val) -> checkNth(el._sel_index, val)
+
+            'first-of-type': (el) -> el._sel_indexOfType == 1
+            'only-of-type': (el) -> el._sel_indexOfType == 1 and el.parentNode._sel_children[el.nodeName] == 1
+            'nth-of-type': (el, val) -> checkNth(el._sel_indexOfType, val)
+        }
+        
+        for name, fn of positionalPseudos
+            pseudos[name] = nthPositional(fn)
+            pseudos[name].batch = true
+
+            # Reversed versions -- the same only set positions in reverse order
+            if name.substr(0, 4) != 'only'
+                name = name.replace('first', 'last').replace('nth', 'nth-last')
+                pseudos[name] = nthPositional(fn, true)
+                pseudos[name].batch = true
+
+    
     ### eval.coffee ###
 
     evaluate = (e, roots, matchRoots) ->
@@ -528,7 +559,7 @@
                 when ' ', '>'
                     # We only need to search from the outermost roots
                     outerRoots = filterDescendants(roots)
-                    els = find(e, outerRoots)
+                    els = find(e, outerRoots, matchRoots)
 
                     if e.type == '>'
                         roots.forEach (el) ->
@@ -541,16 +572,6 @@
                             el._sel_mark = undefined
                             return
                     
-                    if e.matches
-                        els = sel.intersection(els, find(e.matches, outerRoots, matchRoots))
-                        
-                    if e.not
-                        els = sel.difference(els, find(e.not, outerRoots, matchRoots))
-            
-                    # Special case for sel.matching to allow roots to be matched
-                    if matchRoots
-                        els = sel.union(els, filter(e, takeElements(outerRoots)))
-            
                     if e.child
                         if e.subject
                             # Need to check each element individually
@@ -568,7 +589,7 @@
             
                     if e.type == ','
                         # sibs here is just the result of the first selector
-                        els = sel.union(sibs, els)
+                        els = union(sibs, els)
                         
                     else if e.type == '/'
                         ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^#/, ''))
@@ -630,6 +651,7 @@
 
     qSA = (selector, root) ->
         if root.nodeType == 1
+            # Fix element-rooted qSA queries by adding an id
             id = root.id
             if not id
                 root.id = '_sel_root'
@@ -666,9 +688,10 @@
         
         else if typeof roots == 'object' and isFinite(roots.length)
             if roots.sort
+                # Array -- make sure it's sorted in document order
                 roots.sort(elCmp)
             else
-                # NodeList
+                # NodeList -- in document order, but convert to an Array
                 roots = extend([], roots)
                 
             return roots
@@ -676,6 +699,7 @@
         else
             return [roots]
 
+    # The main selector interface
     sel.sel = (selector, _roots, matchRoots) ->
         roots = normalizeRoots(_roots)
 
@@ -706,9 +730,10 @@
     sel.matching = (els, selector, roots) ->
         e = parse(selector)
         
-        if not e.child and not e.children
-            return filter(e, els)
+        if not e.child and not e.children and not e.pseudos
+            return filter(els, e)
         else
-            return sel.intersection(els, sel.sel(selector, roots or findRoots(els), true))
-    )(exports ? (@['sel'] = {}))
+            return intersection(els, sel.sel(selector, roots or findRoots(els), true))
+
+)(exports ? (@['sel'] = {}))
 

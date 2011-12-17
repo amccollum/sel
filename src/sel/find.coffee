@@ -8,24 +8,7 @@
     
     getAttribute = (el, name) -> if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
     
-    # Map of all the positional pseudos and whether or not they are reversed
-    _positionalPseudos = {
-        'nth-child': false
-        'nth-of-type': false
-        'first-child': false
-        'first-of-type': false
-
-        'nth-last-child': true
-        'nth-last-of-type': true
-        'last-child': true
-        'last-of-type': true
-
-        'only-child': false
-        'only-of-type': false
-    }
-    
-
-    find = (e, roots) ->
+    find = (e, roots, matchRoots) ->
         if e.id
             # Find by id
             els = []
@@ -47,7 +30,7 @@
             els = roots.map((root) ->
                 e.classes.map((cls) ->
                     root.getElementsByClassName(cls)
-                ).reduce(sel.union)
+                ).reduce(union)
             ).reduce(extend, [])
 
             # Don't need to filter on class
@@ -66,15 +49,20 @@
             e.ignoreTag = true
 
         if els and els.length
-            els = filter(e, els)
+            els = filter(els, e, roots, matchRoots)
         else
             els = []
             
         e.ignoreTag = undefined
         e.ignoreClasses = undefined
+
+        if matchRoots
+            # Allow roots to be matched, and separately filter
+            els = union(els, filter(takeElements(roots), e, roots, matchRoots))
+
         return els
 
-    filter = (e, els) ->
+    filter = (els, e, roots, matchRoots) ->
         if e.id
             # Filter by id
             els = els.filter((el) -> el.id == e.id)
@@ -114,42 +102,14 @@
         if e.pseudos
             # Filter by pseudo
             e.pseudos.forEach ({name, val}) ->
-
-                pseudo = sel.pseudos[name]
+                pseudo = pseudos[name]
                 if not pseudo
                     throw new Error("no pseudo with name: #{name}")
-        
-                if name of _positionalPseudos
-                    first = if _positionalPseudos[name] then 'lastChild' else 'firstChild'
-                    next = if _positionalPseudos[name] then 'previousSibling' else 'nextSibling'
-            
-                    els.forEach (el) ->
-                        if (parent = el.parentNode) and parent._sel_children == undefined
-                            indices = { '*': 0 }
-                            eachElement parent, first, next, (el) ->
-                                el._sel_index = ++indices['*']
-                                el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
-                                return
                     
-                            parent._sel_children = indices
-                    
-                        return
-            
-                # We need to wait to replace els so we can unset the special attributes
-                filtered = els.filter((el) -> pseudo(el, val))
-
-                if name of _positionalPseudos
-                    els.forEach (el) ->
-                        if (parent = el.parentNode) and parent._sel_children != undefined
-                            eachElement parent, first, next, (el) ->
-                                el._sel_index = el._sel_indexOfType = undefined
-                                return
-                                
-                            parent._sel_children = undefined
-                    
-                        return
-                    
-                els = filtered
+                if pseudo.batch
+                    els = pseudo(els, val, roots, matchRoots)
+                else
+                    els = els.filter((el) -> pseudo(el, val))
 
                 return
             

@@ -121,8 +121,10 @@
 
                     if name == 'not'
                         e.not = parse(val)
+                        
                     else if name == 'matches' or name == 'any'
                         e.matches = parse(val)
+                        
                     else
                         e.pseudos.push({name: name, val: val})
         
