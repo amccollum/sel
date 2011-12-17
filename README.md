@@ -75,7 +75,7 @@ sel.pseudos.bar = function (els, val, roots) {
 };
 
 sel.pseudos.bar.batch = true
-
+```
 
 Ender
 -----
