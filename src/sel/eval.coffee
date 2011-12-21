@@ -15,7 +15,7 @@
                             el._sel_mark = true
                             return
                         
-                        els = els.filter((el) -> el._sel_mark if (el = el.parentNode))
+                        els = els.filter((el) -> el.parentNode._sel_mark if el.parentNode)
 
                         roots.forEach (el) ->
                             el._sel_mark = undefined
