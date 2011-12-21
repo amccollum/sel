@@ -271,7 +271,7 @@
                 doc = root.ownerDocument or root
                 
                 if root == doc or contains(doc.documentElement, root)
-                    el = doc.getElementById(id)
+                    el = doc.getElementById(e.id)
                     els.push(el) if el and contains(root, el)
                         
                 else
