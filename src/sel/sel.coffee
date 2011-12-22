@@ -275,7 +275,7 @@
                     els.push(el) if el and contains(root, el)
                         
                 else
-                    # Detached elements, so make filter do the work
+                    # Disconnected elements, so make filter do the work
                     extend(els, root.getElementsByTagName(e.tag or '*'))
                     
                 return # prevent useless return from forEach
@@ -649,13 +649,19 @@
                 
         else
             return select(selector, roots, matchRoots)
+    matchesSelector = html.matchesSelector or html.mozMatchesSelector or html.webkitMatchesSelector or html.msMatchesSelector
+    matchesDisconnected = matchesSelector and matchesSelector.call(document.createElement('div'), 'div')
     
-    sel.matching = (els, selector, roots) ->
+    sel.matching = matching = (els, selector, roots) ->
+        if matchesSelector and (matchesDisconnected or els.every((el) -> el.document and el.document.nodeType != 11))
+            try
+                return els.filter((el) -> matchesSelector.call(el, selector))
+            catch e
+    
         e = parse(selector)
-        
-        if not e.child and not e.children
-            return filter(e, els)
+        if not e.child and not e.children and not e.pseudos
+            return filter(els, e)
         else
-            return sel.intersection(els, sel.sel(selector, roots or findRoots(els), true))
-    )(exports ? (@['sel'] = {}))
+            return intersection(els, sel.sel(selector, findRoots(els), true))
+)(exports ? (@['sel'] = {}))
 
