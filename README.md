@@ -16,7 +16,9 @@ div! .box                   /* subject overriding */
 label /for/ input           /* id references */
 [attr = "val" i]            /* case insensitive attribute matching */
 div:nth-match(3 of .box)    /* :nth-match and :nth-last-match */
-a:local-link(0)             /* :local-link pseudo-selector */
+a:local-link(0)             /* :local-link */
+td:column(col.profit)       /* :column */
+td:nth-column(even)         /* :nth-column and :nth-last-column */
 ```
 
 Sel also supports the following extensions:

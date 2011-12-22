@@ -10,7 +10,7 @@
         disabled: (el) -> el.disabled == true
         
         root: (el) -> (el.ownerDocument.documentElement == el)
-        target: (el) -> (el.getAttribute('id') == location.hash.substr(1))
+        target: (el) -> (el.id == location.hash.substr(1))
         empty: (el) -> not el.childNodes.length
 
         # CSS 4
@@ -38,6 +38,9 @@
         with: (el, val) -> select(val, [el]).length > 0
         without: (el, val) -> select(val, [el]).length == 0
         
+    # Pseudo Synonyms
+    pseudos['has'] = pseudos['with']
+
     # :not and :matches
     pseudos.matches = (els, val, roots, matchRoots) -> intersection(els, select(val, roots, matchRoots))
     pseudos.matches.batch = true
@@ -45,49 +48,97 @@
     pseudos.not = (els, val, roots, matchRoots) -> difference(els, select(val, roots, matchRoots))
     pseudos.not.batch = true
 
-    # Pseudo Synonyms
-    pseudos['has'] = pseudos['with']
-
     # Positional Pseudos
     do ->
         nthPattern = ///
+            ^
             \s*
-            (\+|\-)? (\d*)n      # Coefficient
+            
+            ( even | odd | 
+                (?: (\+|\-)? (\d*)(n))?         # Coefficient
+                (?: \s* (\+|\-)? \s* (\d+))?    # Constant
+            )
+            
+            (?: \s+ of \s+ (.*?))?              # Match expr
+
             \s*
-            (?: (\+|\-) \s* (\d+))?  # Constant
-            \s*
+            $
         ///
+
+        checkNth = (i, m) ->
+            a = parseInt((m[2] or '+') + (if m[3] == '' then (if m[4] then '1' else '0') else m[3]))
+            b = parseInt((m[5] or '+') + (if m[6] == '' then '0' else m[6]))
+            
+            if m[1] == 'even' then (i % 2 == 0)
+            else if m[1] == 'odd' then (i % 2 == 1)
+            else if a then (((i - b) % a == 0) and ((i - b) / a >= 0))
+            else if b then (i == b)
+            else throw new Error('Invalid nth expression')
+
+        # column, nth-column and nth-last-column
+        matchColumn = (nth, reversed) ->
+            first = if reversed then 'lastChild' else 'firstChild'
+            next = if reversed then 'previousSibling' else 'nextSibling'
+
+            return (els, val, roots) ->
+                set = []
+                if nth
+                    m = nthPattern.exec(val)
+                    check = (i) -> checkNth(i, m)
+                    
+                select('table', roots).forEach (table) ->
+                    if not nth
+                        col = select(val, [table])[0]
+                        
+                        min = 0
+                        eachElement col, 'previousSibling', 'previousSibling', (col) ->
+                            min += parseInt(col.getAttribute('span') or 1)
+                        
+                        max = min + parseInt(col.getAttribute('span') or 1)
+                        check = (i) -> min < i <= max
+                    
+                    for tbody in table.tBodies
+                        eachElement tbody, 'firstChild', 'nextSibling', (row) ->
+                            return if row.tagName.toLowerCase() != 'tr'
+                            
+                            i = 0
+                            eachElement row, first, next, (col) ->
+                                span = parseInt(col.getAttribute('span') or 1)
+                                while span
+                                    set.push(col) if check(++i)
+                                    span--
+                                
+                                return
+                            
+                            return
+                    
+                    return
+                
+                return intersection(els, set)
         
-        checkNth = (i, val) ->
-            if not val then false
-            else if isFinite(val) then `i == val`       # Use loose equality check since val could be a string
-            else if val == 'even' then (i % 2 == 0)
-            else if val == 'odd' then (i % 2 == 1)
-            else if m = nthPattern.exec(val)
-                # Convert values and check omissions
-                a = parseInt((m[1] or '+') + (if m[2] == '' then '1' else m[2]))
-                b = parseInt((m[3] or '+') + (if m[4] == '' then '0' else m[4]))
+        pseudos['column'] = matchColumn(false)
+        pseudos['column'].batch = true
 
-                if not a then (i == b)
-                else (((i - b) % a == 0) and ((i - b) / a >= 0))
+        pseudos['nth-column'] = matchColumn(true)
+        pseudos['nth-column'].batch = true
 
-            else throw new Error('invalid nth expression')
-
+        pseudos['nth-last-column'] = matchColumn(true, true)
+        pseudos['nth-last-column'].batch = true
+        
         # nth-match and nth-last-match
         nthMatchPattern = ///^(.*?) \s* of \s* (.*)$///
         
         nthMatch = (reversed) ->
             return (els, val, roots) ->
-                val = nthMatchPattern.exec(val)
-                
-                set = select(val[2], roots)
+                m = nthPattern.exec(val)
+                set = select(m[7], roots)
                 len = set.length
             
                 set.forEach (el, i) ->
                     el._sel_index = (if reversed then (len - i) else i) + 1
                     return
 
-                filtered = els.filter((el) -> checkNth(el._sel_index, val[1]))
+                filtered = els.filter((el) -> checkNth(el._sel_index, m))
             
                 set.forEach (el, i) ->
                     el._sel_index = undefined
@@ -106,7 +157,9 @@
             first = if reversed then 'lastChild' else 'firstChild'
             next = if reversed then 'previousSibling' else 'nextSibling'
 
-            return (els) ->
+            return (els, val) ->
+                m = nthPattern.exec(val) if val
+
                 els.forEach (el) ->
                     if (parent = el.parentNode) and parent._sel_children == undefined
                         indices = { '*': 0 }
@@ -119,7 +172,7 @@
 
                     return
                 
-                filtered = els.filter((el) -> fn(el))
+                filtered = els.filter((el) -> fn(el, m))
 
                 els.forEach (el) ->
                     if (parent = el.parentNode) and parent._sel_children != undefined
@@ -136,11 +189,11 @@
         positionalPseudos = {
             'first-child': (el) -> el._sel_index == 1
             'only-child': (el) -> el._sel_index == 1 and el.parentNode._sel_children['*'] == 1
-            'nth-child': (el, val) -> checkNth(el._sel_index, val)
+            'nth-child': (el, m) -> checkNth(el._sel_index, m)
 
             'first-of-type': (el) -> el._sel_indexOfType == 1
             'only-of-type': (el) -> el._sel_indexOfType == 1 and el.parentNode._sel_children[el.nodeName] == 1
-            'nth-of-type': (el, val) -> checkNth(el._sel_indexOfType, val)
+            'nth-of-type': (el, m) -> checkNth(el._sel_indexOfType, m)
         }
         
         for name, fn of positionalPseudos
@@ -153,4 +206,6 @@
                 pseudos[name] = nthPositional(fn, true)
                 pseudos[name].batch = true
 
+        return
+        
     

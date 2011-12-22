@@ -29,6 +29,27 @@ detached = '''
             <li class="even"></li>
             <li class="odd"></li>
         </ul>
+        
+        <table>
+            <col class="first second" span="2" />
+            <col class="third" />
+            <col class="fourth" span="1" />
+            <tr>
+                <td class="first"></td>
+                <td class="second third fourth" span="3">
+            </tr>
+            <tr>
+                <td class="first second" span="2"></td>
+                <td class="third"></td>
+                <td class="fourth"></td>
+            </tr>
+            <tr>
+                <td class="first"></td>
+                <td class="second"></td>
+                <td class="third"></td>
+                <td class="fourth"></td>
+            </tr>
+        </table>
     </div>
 '''
 
@@ -73,34 +94,80 @@ vows.add 'CSS4 Tests',
         'overriding subjects':
             '`.child! #foo`':
                 topic: (root) -> sel.sel('.child! #foo', root)
-                'should return only one element': (result) -> assert.equal result.length, 1
+                'should return only 1 element': (result) -> assert.equal result.length, 1
                 'should return the #b element': (result) -> assert.equal result[0].id, 'b'
 
             '`ul li! ul li`':
                 topic: (root) -> sel.sel('ul li! ul li', root)
-                'should return only one element': (result) -> assert.equal result.length, 1
+                'should return only 1 element': (result) -> assert.equal result.length, 1
                 'should return the #e element': (result) -> assert.equal result[0].id, 'e'
                     
         'idrefs':
             '`#c /ref/ li`':
                 topic: (root) -> sel.sel('#c /ref/ li', root)
-                'should return only one element': (result) -> assert.equal result.length, 1
+                'should return only 1 element': (result) -> assert.equal result.length, 1
                 'should return the #d element': (result) -> assert.equal result[0].id, 'd'
                 
             '`#c a /href/ *`':
                 topic: (root) -> sel.sel('#c a /href/ *', root)
-                'should return only one element': (result) -> assert.equal result.length, 1
+                'should return only 1 element': (result) -> assert.equal result.length, 1
                 'should return the #foo element': (result) -> assert.equal result[0].id, 'foo'
 
         ':local-link':
             '`a:local-link`':
                 topic: (root) -> sel.sel('a:local-link', root)
-                'should return only one element': (result) -> assert.equal result.length, 1
+                'should return only 1 element': (result) -> assert.equal result.length, 1
                 'should return the local link': (result) -> assert.equal result[0].id, 'local-link'
         
         ':nth-match':
             '`#b li:nth-match(2 of .even)`':
                 topic: (root) -> sel.sel('#b li:nth-match(2 of .even)', root)
-                'should return only one element': (result) -> assert.equal result.length, 1
+                'should return only 1 element': (result) -> assert.equal result.length, 1
                 'should return the second li.even': (result) -> assert.equal result[0].id, 'f'
         
+        ':column':
+            '`:column(col.first.second)`':
+                topic: (root) -> sel.sel(':column(col.first.second)', root)
+                'should return 5 elements': (result) -> assert.equal result.length, 5
+        
+            '`:column(col.third)`':
+                topic: (root) -> sel.sel(':column(col.third)', root)
+                'should return 3 elements': (result) -> assert.equal result.length, 3
+
+            '`:column(col.fourth)`':
+                topic: (root) -> sel.sel(':column(col.third)', root)
+                'should return 3 elements': (result) -> assert.equal result.length, 3
+                
+        ':nth-column':
+            '`:nth-column(1)`':
+                topic: (root) -> sel.sel(':nth-column(1)', root)
+                'should return all the .first column cells': (result) -> assert.equal sel.matching(result, '.first').length, 3
+        
+            '`:nth-column(2)`':
+                topic: (root) -> sel.sel(':nth-column(2)', root)
+                'should return all the .second column cells': (result) -> assert.equal sel.matching(result, '.second').length, 3
+        
+            '`:nth-column(3)`':
+                topic: (root) -> sel.sel(':nth-column(3)', root)
+                'should return all the .third column cells': (result) -> assert.equal sel.matching(result, '.third').length, 3
+        
+            '`:nth-column(4)`':
+                topic: (root) -> sel.sel(':nth-column(4)', root)
+                'should return all the .fourth column cells': (result) -> assert.equal sel.matching(result, '.fourth').length, 3
+                
+        ':nth-last-column':
+            '`:nth-last-column(1)`':
+                topic: (root) -> sel.sel(':nth-last-column(1)', root)
+                'should return all the .fourth column cells': (result) -> assert.equal sel.matching(result, '.fourth').length, 3
+        
+            '`:nth-last-column(2)`':
+                topic: (root) -> sel.sel(':nth-last-column(2)', root)
+                'should return all the .third column cells': (result) -> assert.equal sel.matching(result, '.third').length, 3
+        
+            '`:nth-last-column(3)`':
+                topic: (root) -> sel.sel(':nth-last-column(3)', root)
+                'should return all the .second column cells': (result) -> assert.equal sel.matching(result, '.second').length, 3
+        
+            '`:nth-last-column(4)`':
+                topic: (root) -> sel.sel(':nth-last-column(4)', root)
+                'should return all the .first column cells': (result) -> assert.equal sel.matching(result, '.first').length, 3

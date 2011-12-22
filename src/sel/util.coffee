@@ -11,13 +11,16 @@
     takeElements = (els) -> els.filter((el) -> el.nodeType == 1)
 
     eachElement = (el, first, next, fn) ->
-        el = el[first]
+        el = el[first] if first
         while (el)
-            fn(el) if el.nodeType == 1
+            if el.nodeType == 1
+                if fn(el) == false
+                    break
+                
             el = el[next]
             
         return
-        
+    
     nextElementSibling =
         if html.nextElementSibling
             (el) -> el.nextElementSibling
