@@ -238,16 +238,7 @@
                 e.pseudos = []
                 e.pseudosAll.replace pseudoPattern, (all, name, val) ->
                     name = name.toLowerCase()
-
-                    if name == 'not'
-                        e.not = parse(val)
-                        
-                    else if name == 'matches' or name == 'any'
-                        e.matches = parse(val)
-                        
-                    else
-                        e.pseudos.push({name: name, val: val})
-        
+                    e.pseudos.push({name: name, val: val})
                     return ""
             
         else
@@ -271,7 +262,7 @@
             roots.forEach (root) ->
                 doc = root.ownerDocument or root
                 
-                if root == doc or contains(doc.documentElement, root)
+                if root == doc or (root.nodeType == 1 and contains(doc.documentElement, root))
                     el = doc.getElementById(e.id)
                     els.push(el) if el and contains(root, el)
                         
@@ -658,8 +649,9 @@
                         els = union(sibs, els)
                         
                     else if e.type == '/'
-                        ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^#/, ''))
-                        els = els.filter((el) -> el.id in ids)
+                        # IE6 still doesn't return the plain href sometimes...
+                        ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^.*?#/, ''))
+                        els = els.filter((el) -> ~ids.indexOf(el.id))
                     
                     else if e.type == '+'
                         sibs.forEach (el) ->

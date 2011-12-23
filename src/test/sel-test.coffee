@@ -87,6 +87,11 @@ vows.add 'Miscellaneous Tests',
                     topic: (els) -> sel.matching(els, '.even li, .odd li')
                     'should return 3 elements': (result) -> assert.equal result.length, 3
 
+                '`:with(.nested)`':
+                    topic: (els) -> sel.matching(els, ':with(.nested)')
+                    'should return 1 element': (result) -> assert.equal result.length, 1
+                    'should return the #e element': (result) -> assert.equal result[0].id, 'e'
+
 vows.add 'CSS4 Tests',
     'with detached elements,': 
         topic: () -> sel.sel(detached)

@@ -15,7 +15,7 @@
             roots.forEach (root) ->
                 doc = root.ownerDocument or root
                 
-                if root == doc or contains(doc.documentElement, root)
+                if root == doc or (root.nodeType == 1 and contains(doc.documentElement, root))
                     el = doc.getElementById(e.id)
                     els.push(el) if el and contains(root, el)
                         

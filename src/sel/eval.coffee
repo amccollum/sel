@@ -41,8 +41,9 @@
                         els = union(sibs, els)
                         
                     else if e.type == '/'
-                        ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^#/, ''))
-                        els = els.filter((el) -> el.id in ids)
+                        # IE6 still doesn't return the plain href sometimes...
+                        ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^.*?#/, ''))
+                        els = els.filter((el) -> ~ids.indexOf(el.id))
                     
                     else if e.type == '+'
                         sibs.forEach (el) ->
