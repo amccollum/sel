@@ -806,5 +806,6 @@
             return filter(els, e)
         else
             return intersection(els, sel.sel(selector, findRoots(els), true))
+    return
 )(exports ? (@['sel'] = {}))
 
