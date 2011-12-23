@@ -12,7 +12,7 @@ execCmds = (cmds) ->
 task 'build', 'Build the library', ->
     execCmds [
         'cd src/sel',
-        'cat _pre.coffee util.coffee parser.coffee find.coffee pseudos.coffee eval.coffee select.coffee _post.coffee > sel.coffee',
+        'cat _pre.coffee util.coffee parser.coffee find.coffee pseudos.coffee eval.coffee select.coffee matching.coffee _post.coffee > sel.coffee',
         'cd ../..',
         'coffee --compile --bare --output lib src/sel/sel.coffee',
         'coffee --compile --bare --output lib src/extras/ender.coffee',

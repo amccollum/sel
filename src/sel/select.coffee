@@ -98,12 +98,3 @@
                 
         else
             return select(selector, roots, matchRoots)
-    
-    sel.matching = (els, selector, roots) ->
-        e = parse(selector)
-        
-        if not e.child and not e.children and not e.pseudos
-            return filter(els, e)
-        else
-            return intersection(els, sel.sel(selector, roots or findRoots(els), true))
-

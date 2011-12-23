@@ -20,7 +20,7 @@
                     els.push(el) if el and contains(root, el)
                         
                 else
-                    # Detached elements, so make filter do the work
+                    # Disconnected elements, so make filter do the work
                     extend(els, root.getElementsByTagName(e.tag or '*'))
                     
                 return
