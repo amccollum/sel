@@ -1,8 +1,8 @@
 {
     "name": "sel",
-    "version": "0.6.4",
-    "description": "Tiny, yet full-featured, selector library",
-    "keywords": ["ender", "css", "selector engine", "jquery"],
+    "version": "0.7.0",
+    "description": "Small, fast CSS4 selector library",
+    "keywords": ["ender", "css", "css4", "selector engine", "jquery", "sizzle"],
     "author": "Andrew McCollum <amccollum@gmail.com>",
     "url": "http://github.com/amccollum/sel",
     "repositories": [{ "type": "git", "url": "https://github.com/amccollum/sel.git" }],
