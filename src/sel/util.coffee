@@ -11,13 +11,16 @@
     takeElements = (els) -> els.filter((el) -> el.nodeType == 1)
 
     eachElement = (el, first, next, fn) ->
-        el = el[first]
+        el = el[first] if first
         while (el)
-            fn(el) if el.nodeType == 1
+            if el.nodeType == 1
+                if fn(el) == false
+                    break
+                
             el = el[next]
             
         return
-        
+    
     nextElementSibling =
         if html.nextElementSibling
             (el) -> el.nextElementSibling
@@ -106,7 +109,7 @@
         return r
     
     # Define these operations in terms of the above element operations to reduce code size
-    sel.union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
-    sel.intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
-    sel.difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
+    sel.union = union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
+    sel.intersection = intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
+    sel.difference = difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
 

@@ -6,31 +6,16 @@
         'class': (el) -> el.className
     }
     
-    # Map of all the positional pseudos and whether or not they are reversed
-    _positionalPseudos = {
-        'nth-child': false
-        'nth-of-type': false
-        'first-child': false
-        'first-of-type': false
-
-        'nth-last-child': true
-        'nth-last-of-type': true
-        'last-child': true
-        'last-of-type': true
-
-        'only-child': false
-        'only-of-type': false
-    }
+    getAttribute = (el, name) -> if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
     
-
-    find = (e, roots) ->
+    find = (e, roots, matchRoots) ->
         if e.id
             # Find by id
             els = []
             roots.forEach (root) ->
                 doc = root.ownerDocument or root
                 
-                if root == doc or contains(doc.documentElement, root)
+                if root == doc or (root.nodeType == 1 and contains(doc.documentElement, root))
                     el = doc.getElementById(e.id)
                     els.push(el) if el and contains(root, el)
                         
@@ -38,14 +23,14 @@
                     # Disconnected elements, so make filter do the work
                     extend(els, root.getElementsByTagName(e.tag or '*'))
                     
-                return # prevent useless return from forEach
-            
+                return
+                
         else if e.classes and find.byClass
             # Find by class
             els = roots.map((root) ->
                 e.classes.map((cls) ->
                     root.getElementsByClassName(cls)
-                ).reduce(sel.union)
+                ).reduce(union)
             ).reduce(extend, [])
 
             # Don't need to filter on class
@@ -64,15 +49,20 @@
             e.ignoreTag = true
 
         if els and els.length
-            els = filter(e, els)
+            els = filter(els, e, roots, matchRoots)
         else
             els = []
             
         e.ignoreTag = undefined
         e.ignoreClasses = undefined
+
+        if matchRoots
+            # Allow roots to be matched, and separately filter
+            els = union(els, filter(takeElements(roots), e, roots, matchRoots))
+
         return els
 
-    filter = (e, els) ->
+    filter = (els, e, roots, matchRoots) ->
         if e.id
             # Filter by id
             els = els.filter((el) -> el.id == e.id)
@@ -85,16 +75,19 @@
             # Filter by class
             e.classes.forEach (cls) ->
                 els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
-                return # prevent useless return from forEach
+                return
 
         if e.attrs
             # Filter by attribute
-            e.attrs.forEach ({name, op, val}) ->
-                
+            e.attrs.forEach ({name, op, val, ignoreCase}) ->
                 els = els.filter (el) ->
-                    attr = if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
+                    attr = getAttribute(el, name)
                     value = attr + ""
             
+                    if ignoreCase
+                        # We already lowercase val in the parser
+                        value = value.toLowerCase()
+                
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
                         if not op then true
                         else if op == '=' then value == val
@@ -107,49 +100,21 @@
                         else false # should never get here...
                     )
 
-                return # prevent useless return from forEach
+                return
             
         if e.pseudos
             # Filter by pseudo
             e.pseudos.forEach ({name, val}) ->
-
-                pseudo = sel.pseudos[name]
+                pseudo = pseudos[name]
                 if not pseudo
                     throw new Error("no pseudo with name: #{name}")
-        
-                if name of _positionalPseudos
-                    first = if _positionalPseudos[name] then 'lastChild' else 'firstChild'
-                    next = if _positionalPseudos[name] then 'previousSibling' else 'nextSibling'
-            
-                    els.forEach (el) ->
-                        if (parent = el.parentNode) and parent._sel_children == undefined
-                            indices = { '*': 0 }
-                            eachElement parent, first, next, (el) ->
-                                el._sel_index = ++indices['*']
-                                el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
-                                return # prevent useless return from eachElement
                     
-                            parent._sel_children = indices
-                    
-                        return # prevent useless return from forEach
-            
-                # We need to wait to replace els so we can unset the special attributes
-                filtered = els.filter((el) -> pseudo(el, val))
+                if pseudo.batch
+                    els = pseudo(els, val, roots, matchRoots)
+                else
+                    els = els.filter((el) -> pseudo(el, val))
 
-                if name of _positionalPseudos
-                    els.forEach (el) ->
-                        if (parent = el.parentNode) and parent._sel_children != undefined
-                            eachElement parent, first, next, (el) ->
-                                el._sel_index = el._sel_indexOfType = undefined
-                                return # prevent useless return from eachElement
-                                
-                            parent._sel_children = undefined
-                    
-                        return # prevent useless return from forEach
-                    
-                els = filtered
-
-                return # prevent useless return from forEach
+                return
             
         return els
 
@@ -180,6 +145,6 @@
         # Prevent IE from leaking memory
         div = null
         
-        return # prevent useless return from do
+        return
     
     

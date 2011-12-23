@@ -23,6 +23,7 @@
 
     qSA = (selector, root) ->
         if root.nodeType == 1
+            # Fix element-rooted qSA queries by adding an id
             id = root.id
             if not id
                 root.id = '_sel_root'
@@ -59,9 +60,10 @@
         
         else if typeof roots == 'object' and isFinite(roots.length)
             if roots.sort
+                # Array -- make sure it's sorted in document order
                 roots.sort(elCmp)
             else
-                # NodeList
+                # NodeList -- in document order, but convert to an Array
                 roots = extend([], roots)
                 
             return roots
@@ -69,6 +71,7 @@
         else
             return [roots]
 
+    # The main selector interface
     sel.sel = (selector, _roots, matchRoots) ->
         roots = normalizeRoots(_roots)
 

@@ -3,7 +3,7 @@
     attrPattern = ///
         \[
             \s* ([-\w]+) \s*
-            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] ) \s* )?
+            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] \s* (i)) \s* )?
         \]
     ///g
 
@@ -11,7 +11,7 @@
         ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
     ///g
     
-    combinatorPattern = /// ^ \s* ([,+~]) ///
+    combinatorPattern = /// ^ \s* ([,+~] | /([-\w]+)/) ///
     
     selectorPattern = /// ^ 
         
@@ -33,12 +33,15 @@
 
         # pseudos
         ( (?: #{pseudoPattern.source} )* )
+        
+        # subject marker
+        (!)?
 
     ///
 
     selectorGroups = {
         type: 1, tag: 2, id: 3, classes: 4,
-        attrsAll: 5, pseudosAll: 10
+        attrsAll: 5, pseudosAll: 11, subject: 14
     }
 
     parse = (selector) ->
@@ -73,7 +76,10 @@
     parseSimple = (selector) ->
         if e = combinatorPattern.exec(selector)
             e.compound = true
-            e.type = e[1]
+            e.type = e[1].charAt(0)
+            
+            if e.type == '/'
+                e.idref = e[2]
             
         else if e = selectorPattern.exec(selector)
             e.simple = true
@@ -87,7 +93,7 @@
 
             if e.attrsAll
                 e.attrs = []
-                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
+                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal, ignoreCase) ->
                     name = name.toLowerCase()
                     val or= quotedVal
                     
@@ -105,19 +111,17 @@
 
                             return ""
                     
-                    e.attrs.push({name: name, op: op, val: val})
+                    if ignoreCase
+                        val = val.toLowerCase()
+                
+                    e.attrs.push({name: name, op: op, val: val, ignoreCase: ignoreCase})
                     return ""
 
             if e.pseudosAll
                 e.pseudos = []
                 e.pseudosAll.replace pseudoPattern, (all, name, val) ->
                     name = name.toLowerCase()
-
-                    if name == 'not'
-                        e.not = parse(val)
-                    else
-                        e.pseudos.push({name: name, val: val})
-        
+                    e.pseudos.push({name: name, val: val})
                     return ""
             
         else

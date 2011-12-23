@@ -13,13 +13,16 @@
     takeElements = (els) -> els.filter((el) -> el.nodeType == 1)
 
     eachElement = (el, first, next, fn) ->
-        el = el[first]
+        el = el[first] if first
         while (el)
-            fn(el) if el.nodeType == 1
+            if el.nodeType == 1
+                if fn(el) == false
+                    break
+                
             el = el[next]
             
         return
-        
+    
     nextElementSibling =
         if html.nextElementSibling
             (el) -> el.nextElementSibling
@@ -108,16 +111,16 @@
         return r
     
     # Define these operations in terms of the above element operations to reduce code size
-    sel.union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
-    sel.intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
-    sel.difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
+    sel.union = union = (a, b) -> combine a, b, true, true, {'0': 0, '-1': 1, '1': 2}
+    sel.intersection = intersection = (a, b) -> combine a, b, false, false, {'0': 0, '-1': -1, '1': -2}
+    sel.difference = difference = (a, b) -> combine a, b, true, false, {'0': -1, '-1': 1, '1': -2}
 
     ### parser.coffee ###
 
     attrPattern = ///
         \[
             \s* ([-\w]+) \s*
-            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] ) \s* )?
+            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] \s* (i)) \s* )?
         \]
     ///g
 
@@ -125,7 +128,7 @@
         ::? ([-\w]+) (?: \( ( \( [^()]+ \) | [^()]+ ) \) )?
     ///g
     
-    combinatorPattern = /// ^ \s* ([,+~]) ///
+    combinatorPattern = /// ^ \s* ([,+~] | /([-\w]+)/) ///
     
     selectorPattern = /// ^ 
         
@@ -147,12 +150,15 @@
 
         # pseudos
         ( (?: #{pseudoPattern.source} )* )
+        
+        # subject marker
+        (!)?
 
     ///
 
     selectorGroups = {
         type: 1, tag: 2, id: 3, classes: 4,
-        attrsAll: 5, pseudosAll: 10
+        attrsAll: 5, pseudosAll: 11, subject: 14
     }
 
     parse = (selector) ->
@@ -187,7 +193,10 @@
     parseSimple = (selector) ->
         if e = combinatorPattern.exec(selector)
             e.compound = true
-            e.type = e[1]
+            e.type = e[1].charAt(0)
+            
+            if e.type == '/'
+                e.idref = e[2]
             
         else if e = selectorPattern.exec(selector)
             e.simple = true
@@ -201,7 +210,7 @@
 
             if e.attrsAll
                 e.attrs = []
-                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal) ->
+                e.attrsAll.replace attrPattern, (all, name, op, val, quotedVal, ignoreCase) ->
                     name = name.toLowerCase()
                     val or= quotedVal
                     
@@ -219,19 +228,17 @@
 
                             return ""
                     
-                    e.attrs.push({name: name, op: op, val: val})
+                    if ignoreCase
+                        val = val.toLowerCase()
+                
+                    e.attrs.push({name: name, op: op, val: val, ignoreCase: ignoreCase})
                     return ""
 
             if e.pseudosAll
                 e.pseudos = []
                 e.pseudosAll.replace pseudoPattern, (all, name, val) ->
                     name = name.toLowerCase()
-
-                    if name == 'not'
-                        e.not = parse(val)
-                    else
-                        e.pseudos.push({name: name, val: val})
-        
+                    e.pseudos.push({name: name, val: val})
                     return ""
             
         else
@@ -246,31 +253,16 @@
         'class': (el) -> el.className
     }
     
-    # Map of all the positional pseudos and whether or not they are reversed
-    _positionalPseudos = {
-        'nth-child': false
-        'nth-of-type': false
-        'first-child': false
-        'first-of-type': false
-
-        'nth-last-child': true
-        'nth-last-of-type': true
-        'last-child': true
-        'last-of-type': true
-
-        'only-child': false
-        'only-of-type': false
-    }
+    getAttribute = (el, name) -> if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
     
-
-    find = (e, roots) ->
+    find = (e, roots, matchRoots) ->
         if e.id
             # Find by id
             els = []
             roots.forEach (root) ->
                 doc = root.ownerDocument or root
                 
-                if root == doc or contains(doc.documentElement, root)
+                if root == doc or (root.nodeType == 1 and contains(doc.documentElement, root))
                     el = doc.getElementById(e.id)
                     els.push(el) if el and contains(root, el)
                         
@@ -278,14 +270,14 @@
                     # Disconnected elements, so make filter do the work
                     extend(els, root.getElementsByTagName(e.tag or '*'))
                     
-                return # prevent useless return from forEach
-            
+                return
+                
         else if e.classes and find.byClass
             # Find by class
             els = roots.map((root) ->
                 e.classes.map((cls) ->
                     root.getElementsByClassName(cls)
-                ).reduce(sel.union)
+                ).reduce(union)
             ).reduce(extend, [])
 
             # Don't need to filter on class
@@ -304,15 +296,20 @@
             e.ignoreTag = true
 
         if els and els.length
-            els = filter(e, els)
+            els = filter(els, e, roots, matchRoots)
         else
             els = []
             
         e.ignoreTag = undefined
         e.ignoreClasses = undefined
+
+        if matchRoots
+            # Allow roots to be matched, and separately filter
+            els = union(els, filter(takeElements(roots), e, roots, matchRoots))
+
         return els
 
-    filter = (e, els) ->
+    filter = (els, e, roots, matchRoots) ->
         if e.id
             # Filter by id
             els = els.filter((el) -> el.id == e.id)
@@ -325,16 +322,19 @@
             # Filter by class
             e.classes.forEach (cls) ->
                 els = els.filter((el) -> " #{el.className} ".indexOf(" #{cls} ") >= 0)
-                return # prevent useless return from forEach
+                return
 
         if e.attrs
             # Filter by attribute
-            e.attrs.forEach ({name, op, val}) ->
-                
+            e.attrs.forEach ({name, op, val, ignoreCase}) ->
                 els = els.filter (el) ->
-                    attr = if _attrMap[name] then _attrMap[name](el) else el.getAttribute(name)
+                    attr = getAttribute(el, name)
                     value = attr + ""
             
+                    if ignoreCase
+                        # We already lowercase val in the parser
+                        value = value.toLowerCase()
+                
                     return (attr or (el.attributes and el.attributes[name] and el.attributes[name].specified)) and (
                         if not op then true
                         else if op == '=' then value == val
@@ -347,49 +347,21 @@
                         else false # should never get here...
                     )
 
-                return # prevent useless return from forEach
+                return
             
         if e.pseudos
             # Filter by pseudo
             e.pseudos.forEach ({name, val}) ->
-
-                pseudo = sel.pseudos[name]
+                pseudo = pseudos[name]
                 if not pseudo
                     throw new Error("no pseudo with name: #{name}")
-        
-                if name of _positionalPseudos
-                    first = if _positionalPseudos[name] then 'lastChild' else 'firstChild'
-                    next = if _positionalPseudos[name] then 'previousSibling' else 'nextSibling'
-            
-                    els.forEach (el) ->
-                        if (parent = el.parentNode) and parent._sel_children == undefined
-                            indices = { '*': 0 }
-                            eachElement parent, first, next, (el) ->
-                                el._sel_index = ++indices['*']
-                                el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
-                                return # prevent useless return from eachElement
                     
-                            parent._sel_children = indices
-                    
-                        return # prevent useless return from forEach
-            
-                # We need to wait to replace els so we can unset the special attributes
-                filtered = els.filter((el) -> pseudo(el, val))
+                if pseudo.batch
+                    els = pseudo(els, val, roots, matchRoots)
+                else
+                    els = els.filter((el) -> pseudo(el, val))
 
-                if name of _positionalPseudos
-                    els.forEach (el) ->
-                        if (parent = el.parentNode) and parent._sel_children != undefined
-                            eachElement parent, first, next, (el) ->
-                                el._sel_index = el._sel_indexOfType = undefined
-                                return # prevent useless return from eachElement
-                                
-                            parent._sel_children = undefined
-                    
-                        return # prevent useless return from forEach
-                    
-                els = filtered
-
-                return # prevent useless return from forEach
+                return
             
         return els
 
@@ -420,63 +392,220 @@
         # Prevent IE from leaking memory
         div = null
         
-        return # prevent useless return from do
+        return
     
     
     ### pseudos.coffee ###
 
-    nthPattern = /\s*((?:\+|\-)?(\d*))n\s*((?:\+|\-)\s*\d+)?\s*/;
-
-    checkNth = (i, val) ->
-        if not val then false
-        else if isFinite(val) then `i == val`       # Use loose equality check since val could be a string
-        else if val == 'even' then (i % 2 == 0)
-        else if val == 'odd' then (i % 2 == 1)
-        else if m = nthPattern.exec(val)
-            a = if m[2] then parseInt(m[1]) else parseInt(m[1] + '1')   # Check case where coefficient is omitted
-            b = if m[3] then parseInt(m[3].replace(/\s*/, '')) else 0   # Check case where constant is omitted
-
-            if not a then (i == b)
-            else (((i - b) % a == 0) and ((i - b) / a >= 0))
-
-        else throw new Error('invalid nth expression')
-
-    sel.pseudos = 
-        # See filter() for how el._sel_* values get set
-        'first-child': (el) -> el._sel_index == 1
-        'only-child': (el) -> el._sel_index == 1 and el.parentNode._sel_children['*'] == 1
-        'nth-child': (el, val) -> checkNth(el._sel_index, val)
-
-        'first-of-type': (el) -> el._sel_indexOfType == 1
-        'only-of-type': (el) -> el._sel_indexOfType == 1 and el.parentNode._sel_children[el.nodeName] == 1
-        'nth-of-type': (el, val) -> checkNth(el._sel_indexOfType, val)
-
-        target: (el) -> (el.getAttribute('id') == location.hash.substr(1))
-        checked: (el) -> el.checked == true
-        enabled: (el) -> el.disabled == false
-        disabled: (el) -> el.disabled == true
+    sel.pseudos = pseudos = 
+        # CSS 3
         selected: (el) -> el.selected == true
         focus: (el) -> el.ownerDocument.activeElement == el
+        
+        enabled: (el) -> el.disabled == false
+        checked: (el) -> el.checked == true
+        disabled: (el) -> el.disabled == true
+        
+        root: (el) -> (el.ownerDocument.documentElement == el)
+        target: (el) -> (el.id == location.hash.substr(1))
         empty: (el) -> not el.childNodes.length
+
+        # CSS 4
+        'local-link': (el, val) ->
+            return false if not el.href
+
+            href = el.href.replace(/#.*?$/, '')
+            location = el.ownerDocument.location.href.replace(/#.*?$/, '')
+            
+            if val == undefined
+                return href == location
+            else
+                # Split into parts and remove protocol
+                href = href.split('/').slice(2)
+                location = location.split('/').slice(2)
+                
+                for i in [0..val] by 1
+                    if href[i] != location[i]
+                        return false
+                        
+                return true
 
         # Extensions
         contains: (el, val) -> (el.textContent ? el.innerText).indexOf(val) >= 0
         with: (el, val) -> select(val, [el]).length > 0
         without: (el, val) -> select(val, [el]).length == 0
-
-    # Pseudo function synonyms
-    (sel.pseudos[synonym] = sel.pseudos[name]) for synonym, name of {
-        'has': 'with',
         
-        # For these methods, the reversing is done in filterPseudo
-        'last-child': 'first-child',
-        'nth-last-child': 'nth-child',
+    # Pseudo Synonyms
+    pseudos['has'] = pseudos['with']
 
-        'last-of-type': 'first-of-type',
-        'nth-last-of-type': 'nth-of-type',
-    }
+    # :not and :matches
+    pseudos.matches = (els, val, roots, matchRoots) -> intersection(els, select(val, roots, matchRoots))
+    pseudos.matches.batch = true
+    
+    pseudos.not = (els, val, roots, matchRoots) -> difference(els, select(val, roots, matchRoots))
+    pseudos.not.batch = true
+
+    # Positional Pseudos
+    do ->
+        nthPattern = ///
+            ^
+            \s*
+            
+            ( even | odd | 
+                (?: (\+|\-)? (\d*)(n))?         # Coefficient
+                (?: \s* (\+|\-)? \s* (\d+))?    # Constant
+            )
+            
+            (?: \s+ of \s+ (.*?))?              # Match expr
+
+            \s*
+            $
+        ///
+
+        checkNth = (i, m) ->
+            a = parseInt((m[2] or '+') + (if m[3] == '' then (if m[4] then '1' else '0') else m[3]))
+            b = parseInt((m[5] or '+') + (if m[6] == '' then '0' else m[6]))
+            
+            if m[1] == 'even' then (i % 2 == 0)
+            else if m[1] == 'odd' then (i % 2 == 1)
+            else if a then (((i - b) % a == 0) and ((i - b) / a >= 0))
+            else if b then (i == b)
+            else throw new Error('Invalid nth expression')
+
+        # column, nth-column and nth-last-column
+        matchColumn = (nth, reversed) ->
+            first = if reversed then 'lastChild' else 'firstChild'
+            next = if reversed then 'previousSibling' else 'nextSibling'
+
+            return (els, val, roots) ->
+                set = []
+                if nth
+                    m = nthPattern.exec(val)
+                    check = (i) -> checkNth(i, m)
+                    
+                select('table', roots).forEach (table) ->
+                    if not nth
+                        col = select(val, [table])[0]
+                        
+                        min = 0
+                        eachElement col, 'previousSibling', 'previousSibling', (col) ->
+                            min += parseInt(col.getAttribute('span') or 1)
+                        
+                        max = min + parseInt(col.getAttribute('span') or 1)
+                        check = (i) -> min < i <= max
+                    
+                    for tbody in table.tBodies
+                        eachElement tbody, 'firstChild', 'nextSibling', (row) ->
+                            return if row.tagName.toLowerCase() != 'tr'
+                            
+                            i = 0
+                            eachElement row, first, next, (col) ->
+                                span = parseInt(col.getAttribute('span') or 1)
+                                while span
+                                    set.push(col) if check(++i)
+                                    span--
+                                
+                                return
+                            
+                            return
+                    
+                    return
+                
+                return intersection(els, set)
         
+        pseudos['column'] = matchColumn(false)
+        pseudos['column'].batch = true
 
+        pseudos['nth-column'] = matchColumn(true)
+        pseudos['nth-column'].batch = true
+
+        pseudos['nth-last-column'] = matchColumn(true, true)
+        pseudos['nth-last-column'].batch = true
+        
+        # nth-match and nth-last-match
+        nthMatchPattern = ///^(.*?) \s* of \s* (.*)$///
+        
+        nthMatch = (reversed) ->
+            return (els, val, roots) ->
+                m = nthPattern.exec(val)
+                set = select(m[7], roots)
+                len = set.length
+            
+                set.forEach (el, i) ->
+                    el._sel_index = (if reversed then (len - i) else i) + 1
+                    return
+
+                filtered = els.filter((el) -> checkNth(el._sel_index, m))
+            
+                set.forEach (el, i) ->
+                    el._sel_index = undefined
+                    return
+            
+                return filtered
+        
+        pseudos['nth-match'] = nthMatch()
+        pseudos['nth-match'].batch = true
+        
+        pseudos['nth-last-match'] = nthMatch(true)
+        pseudos['nth-last-match'].batch = true
+
+        # All other positional pseudo-selectors
+        nthPositional = (fn, reversed) ->
+            first = if reversed then 'lastChild' else 'firstChild'
+            next = if reversed then 'previousSibling' else 'nextSibling'
+
+            return (els, val) ->
+                m = nthPattern.exec(val) if val
+
+                els.forEach (el) ->
+                    if (parent = el.parentNode) and parent._sel_children == undefined
+                        indices = { '*': 0 }
+                        eachElement parent, first, next, (el) ->
+                            el._sel_index = ++indices['*']
+                            el._sel_indexOfType = indices[el.nodeName] = (indices[el.nodeName] or 0) + 1
+                            return
+
+                        parent._sel_children = indices
+
+                    return
+                
+                filtered = els.filter((el) -> fn(el, m))
+
+                els.forEach (el) ->
+                    if (parent = el.parentNode) and parent._sel_children != undefined
+                        eachElement parent, first, next, (el) ->
+                            el._sel_index = el._sel_indexOfType = undefined
+                            return
+                    
+                        parent._sel_children = undefined
+        
+                    return
+                
+                return filtered
+
+        positionalPseudos = {
+            'first-child': (el) -> el._sel_index == 1
+            'only-child': (el) -> el._sel_index == 1 and el.parentNode._sel_children['*'] == 1
+            'nth-child': (el, m) -> checkNth(el._sel_index, m)
+
+            'first-of-type': (el) -> el._sel_indexOfType == 1
+            'only-of-type': (el) -> el._sel_indexOfType == 1 and el.parentNode._sel_children[el.nodeName] == 1
+            'nth-of-type': (el, m) -> checkNth(el._sel_indexOfType, m)
+        }
+        
+        for name, fn of positionalPseudos
+            pseudos[name] = nthPositional(fn)
+            pseudos[name].batch = true
+
+            # Reversed versions -- the same only set positions in reverse order
+            if name.substr(0, 4) != 'only'
+                name = name.replace('first', 'last').replace('nth', 'nth-last')
+                pseudos[name] = nthPositional(fn, true)
+                pseudos[name].batch = true
+
+        return
+        
+    
     ### eval.coffee ###
 
     evaluate = (e, roots, matchRoots) ->
@@ -487,29 +616,27 @@
                 when ' ', '>'
                     # We only need to search from the outermost roots
                     outerRoots = filterDescendants(roots)
-                    els = find(e, outerRoots)
+                    els = find(e, outerRoots, matchRoots)
 
                     if e.type == '>'
                         roots.forEach (el) ->
                             el._sel_mark = true
                             return
                         
-                        els = els.filter((el) -> el._sel_mark if (el = el.parentNode))
+                        els = els.filter((el) -> el.parentNode._sel_mark if el.parentNode)
 
                         roots.forEach (el) ->
                             el._sel_mark = undefined
                             return
                     
-                    if e.not
-                        els = sel.difference(els, find(e.not, outerRoots, matchRoots))
-            
-                    if matchRoots
-                        els = sel.union(els, filter(e, takeElements(outerRoots)))
-            
                     if e.child
-                        els = evaluate(e.child, els)
+                        if e.subject
+                            # Need to check each element individually
+                            els = els.filter((el) -> evaluate(e.child, [el]).length)
+                        else
+                            els = evaluate(e.child, els)
 
-                when '+', '~', ','
+                when '+', '~', ',', '/'
                     if e.children.length == 2
                         sibs = evaluate(e.children[0], roots, matchRoots)
                         els = evaluate(e.children[1], roots, matchRoots)
@@ -519,14 +646,19 @@
             
                     if e.type == ','
                         # sibs here is just the result of the first selector
-                        els = sel.union(sibs, els)
+                        els = union(sibs, els)
+                        
+                    else if e.type == '/'
+                        # IE6 still doesn't return the plain href sometimes...
+                        ids = sibs.map((el) -> getAttribute(el, e.idref).replace(/^.*?#/, ''))
+                        els = els.filter((el) -> ~ids.indexOf(el.id))
                     
                     else if e.type == '+'
                         sibs.forEach (el) ->
                             if (el = nextElementSibling(el))
                                 el._sel_mark = true 
                                 
-                            return # prevent useless return from forEach
+                            return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
@@ -534,14 +666,14 @@
                             if (el = nextElementSibling(el))
                                 el._sel_mark = undefined
                                 
-                            return # prevent useless return from forEach
+                            return
                     
                     else if e.type == '~'
                         sibs.forEach (el) ->
                             while (el = nextElementSibling(el)) and not el._sel_mark
                                 el._sel_mark = true
                                 
-                            return # prevent useless return from forEach
+                            return
                             
                         els = els.filter((el) -> el._sel_mark)
                         
@@ -549,7 +681,7 @@
                             while (el = nextElementSibling(el)) and el._sel_mark
                                 el._sel_mark = undefined
                                 
-                            return # prevent useless return from forEach
+                            return
 
         return els
     ### select.coffee ###
@@ -577,6 +709,7 @@
 
     qSA = (selector, root) ->
         if root.nodeType == 1
+            # Fix element-rooted qSA queries by adding an id
             id = root.id
             if not id
                 root.id = '_sel_root'
@@ -613,9 +746,10 @@
         
         else if typeof roots == 'object' and isFinite(roots.length)
             if roots.sort
+                # Array -- make sure it's sorted in document order
                 roots.sort(elCmp)
             else
-                # NodeList
+                # NodeList -- in document order, but convert to an Array
                 roots = extend([], roots)
                 
             return roots
@@ -623,6 +757,7 @@
         else
             return [roots]
 
+    # The main selector interface
     sel.sel = (selector, _roots, matchRoots) ->
         roots = normalizeRoots(_roots)
 
@@ -663,5 +798,6 @@
             return filter(els, e)
         else
             return intersection(els, sel.sel(selector, findRoots(els), true))
+    return
 )(exports ? (@['sel'] = {}))
 
