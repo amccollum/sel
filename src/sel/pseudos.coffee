@@ -14,6 +14,29 @@
         empty: (el) -> not el.childNodes.length
 
         # CSS 4
+        dir: (el, val) ->
+            while el
+                if el.dir
+                    return el.dir == val
+                    
+                el = el.parentNode
+            
+            return false
+        
+        lang: (el, val) ->
+            while el
+                if (lang = el.lang)
+                    return lang == val or lang.indexOf("#{val}-") == 0
+                    
+                el = el.parentNode
+            
+            el = select('head meta[http-equiv="Content-Language" i]', el.ownerDocument)[0]
+            if el
+                lang = getAttribute(el, 'content').split(',')[0]
+                return lang == val or lang.indexOf("#{val}-") == 0
+            
+            return false
+        
         'local-link': (el, val) ->
             return false if not el.href
 
