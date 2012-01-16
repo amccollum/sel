@@ -81,7 +81,7 @@
             if e.type == '/'
                 e.idref = e[2]
             
-        else if e = selectorPattern.exec(selector)
+        else if (e = selectorPattern.exec(selector)) and e[0].trim()
             e.simple = true
 
             for name, group of selectorGroups
