@@ -120,7 +120,7 @@
     attrPattern = ///
         \[
             \s* ([-\w]+) \s*
-            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"] \s* (i)) \s* )?
+            (?: ([~|^$*!]?=) \s* (?: ([-\w]+) | ['"]([^'"]*)['"]) \s* (i)? \s* )?
         \]
     ///g
 
@@ -162,6 +162,7 @@
     }
 
     parse = (selector) ->
+        selector = selector.trim()
         if selector of parse.cache
             return parse.cache[selector]
             
