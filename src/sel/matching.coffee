@@ -1,7 +1,7 @@
     matchesSelector = html.matchesSelector or html.mozMatchesSelector or html.webkitMatchesSelector or html.msMatchesSelector
     matchesDisconnected = matchesSelector and matchesSelector.call(document.createElement('div'), 'div')
     
-    sel.matching = matching = (els, selector, roots) ->
+    sel.matching = matching = (els, selector) ->
         if matchesSelector and (matchesDisconnected or els.every((el) -> el.document and el.document.nodeType != 11))
             try
                 return els.filter((el) -> matchesSelector.call(el, selector))

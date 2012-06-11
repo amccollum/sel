@@ -2,7 +2,7 @@
 
     html = document.documentElement
     
-    extend = (a, b) ->
+    sel.extend = extend = (a, b) ->
         for x in b
             a.push(x)
     
