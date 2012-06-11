@@ -788,7 +788,7 @@
         if not selector
             return []
             
-        else if Array.isArray(selector)
+        else if typeof selector == 'object' and isFinite(selector.length)
             return selector
             
         else if tagPattern.test(selector)

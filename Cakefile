@@ -1,8 +1,6 @@
 fs = require('fs')
 {spawn, exec} = require('child_process')
 
-package = JSON.parse(fs.readFileSync('package.json', 'utf8'))
-
 execCmds = (cmds) ->
     exec cmds.join(' && '), (err, stdout, stderr) ->
         output = (stdout + stderr).trim()
