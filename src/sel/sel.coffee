@@ -765,10 +765,10 @@
         if not roots
             return [document]
         
-        else if typeof roots == 'string'
+        else if typeof roots is 'string'
             return select(roots, [document])
         
-        else if typeof roots == 'object' and isFinite(roots.length)
+        else if typeof roots is 'object' and isFinite(roots.length)
             if roots.sort
                 # Array -- make sure it's sorted in document order
                 roots.sort(elCmp)
@@ -788,7 +788,13 @@
         if not selector
             return []
             
-        else if typeof selector == 'object' and isFinite(selector.length)
+        else if selector.nodeType == 1
+            if not _roots or roots.some((root) -> contains(root, selector))
+                return [selector]
+            else
+                return []
+                
+        else if typeof selector is 'object' and isFinite(selector.length)
             return selector
             
         else if tagPattern.test(selector)
@@ -800,12 +806,6 @@
         else if selector in [document, 'document']
             return [document]
             
-        else if selector.nodeType == 1
-            if not _roots or roots.some((root) -> contains(root, selector))
-                return [selector]
-            else
-                return []
-                
         else
             return select(selector, roots, matchRoots)
     matchesSelector = html.matchesSelector or html.mozMatchesSelector or html.webkitMatchesSelector or html.msMatchesSelector

@@ -1,6 +1,6 @@
 {
     "name": "sel",
-    "version": "0.7.3",
+    "version": "0.7.4",
     "description": "Small, fast CSS4 selector library",
     "keywords": ["ender", "css", "css4", "selector engine", "jquery", "sizzle"],
     "author": "Andrew McCollum <amccollum@gmail.com>",
