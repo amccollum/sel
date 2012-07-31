@@ -84,17 +84,17 @@
             else
                 return []
                 
-        else if typeof selector is 'object' and isFinite(selector.length)
-            return selector
-            
-        else if tagPattern.test(selector)
-            return create(selector, roots[0])
-            
         else if selector in [window, 'window']
             return [window]
             
         else if selector in [document, 'document']
             return [document]
+            
+        else if typeof selector is 'object' and isFinite(selector.length)
+            return selector
+            
+        else if tagPattern.test(selector)
+            return create(selector, roots[0])
             
         else
             return select(selector, roots, matchRoots)
