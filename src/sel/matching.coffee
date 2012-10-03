@@ -5,7 +5,7 @@
         if matchesSelector and (matchesDisconnected or els.every((el) -> el.document and el.document.nodeType != 11))
             try
                 return els.filter((el) -> matchesSelector.call(el, selector))
-            catch e
+            catch err
     
         e = parse(selector)
         if not e.child and not e.children and not e.pseudos

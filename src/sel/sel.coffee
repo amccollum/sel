@@ -754,7 +754,7 @@
                 if not matchRoots and not combinatorPattern.exec(selector)
                     try
                         return roots.map((root) -> qSA(selector, root)).reduce(extend, [])
-                    catch e
+                    catch err
 
                 return evaluate(parse(selector), roots, matchRoots)
             
@@ -815,7 +815,7 @@
         if matchesSelector and (matchesDisconnected or els.every((el) -> el.document and el.document.nodeType != 11))
             try
                 return els.filter((el) -> matchesSelector.call(el, selector))
-            catch e
+            catch err
     
         e = parse(selector)
         if not e.child and not e.children and not e.pseudos

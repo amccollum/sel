@@ -44,7 +44,7 @@
                 if not matchRoots and not combinatorPattern.exec(selector)
                     try
                         return roots.map((root) -> qSA(selector, root)).reduce(extend, [])
-                    catch e
+                    catch err
 
                 return evaluate(parse(selector), roots, matchRoots)
             
